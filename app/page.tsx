@@ -1,83 +1,40 @@
-'use client';
+import Link from 'next/link';
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import FantinoChat from '../components/FantinoChat';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-type Fantino = { id: string; nome: string; soprannome: string | null };
+const schede = [
+  ['Gestione della Contrada', 'Crediti, rapporti e scelte: ogni decisione pesa sul Palio.'],
+  ['Trattative con i fantini', 'Parla con ogni fantino e conquista la sua fiducia.'],
+  ['Rivalità', 'Le rivalità storiche condizionano accordi e strategie.'],
+  ['Storia della carriera', 'Le annate di ogni Contrada, Palio dopo Palio.'],
+];
 
 export default function Home() {
-  const [loggato, setLoggato] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errore, setErrore] = useState<string | null>(null);
-  const [fantino, setFantino] = useState<Fantino | null>(null);
-
-  async function caricaFantino() {
-    const { data } = await supabase.from('fantini').select('id, nome, soprannome').limit(1).single();
-    if (data) setFantino(data);
-  }
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setLoggato(true);
-        caricaFantino();
-      }
-    });
-  }, []);
-
-  async function login() {
-    setErrore(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setErrore('Email o password non corrette. Controlla e riprova.');
-      return;
-    }
-    setLoggato(true);
-    caricaFantino();
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    setLoggato(false);
-    setFantino(null);
-  }
-
   return (
-    <main className="scena">
-      <h1 className="titolo">Palio Sim</h1>
-      <p className="sottotitolo">Entra nella tua contrada e tratta con i fantini.</p>
-
-      {!loggato ? (
-        <div className="carta">
-          <input className="campo" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input
-            className="campo"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && login()}
-          />
-          <button className="bottone" onClick={login}>Entra in contrada</button>
-          {errore && <p className="errore">{errore}</p>}
+    <>
+      <header className="barra-alta">
+        <span className="marchio">Il Gioco del Palio</span>
+        <nav>
+          <Link href="/accedi?m=registrati">Nuova partita</Link>
+          <Link href="/accedi" className="pillola">Entra</Link>
+        </nav>
+      </header>
+      <main className="eroe">
+        <p className="sopra">Siena</p>
+        <h1>Il Palio d&apos;Inverno</h1>
+        <p className="motto">Strategia. Rivalità. Gloria.</p>
+        <p className="testo">
+          Guida una delle dieci Contrade che corrono il Palio: parla con i fantini durante l&apos;inverno, tratta alla Tratta,
+          affronta l&apos;estrazione dei cavalli e conquista il drappellone.
+        </p>
+        <div className="azioni">
+          <Link href="/partite" className="btn">Entra nella partita</Link>
+          <Link href="/partite" className="btn btn-vuoto">Carica una partita</Link>
         </div>
-      ) : (
-        <>
-          <button className="bottone-tenue" onClick={logout}>Esci</button>
-          {fantino ? (
-            <FantinoChat fantinoId={fantino.id} fantinoNome={fantino.nome} fantinoSoprannome={fantino.soprannome ?? undefined} />
-          ) : (
-            <p className="sottotitolo">Nessun fantino disponibile al momento.</p>
-          )}
-        </>
-      )}
-    </main>
+      </main>
+      <section className="schede">
+        {schede.map(([t, d]) => (
+          <article key={t} className="scheda"><h3>{t}</h3><p>{d}</p></article>
+        ))}
+      </section>
+    </>
   );
 }
