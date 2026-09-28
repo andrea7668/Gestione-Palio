@@ -52,3 +52,4 @@ label{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:14px}
 @keyframes salto{50%{transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){.scrive i{animation:none}}
 .barra{display:flex;gap:10px;padding:12px;border-top:1px solid var(--linea)}.barra .campo{flex:1;min-width:0}
+.codice{display:inline-block;background:#efe9df;border:1px dashed var(--oro);border-radius:8px;padding:4px 12px;font:600 15px ui-monospace,Menlo,monospace;letter-spacing:.08em;user-select:all}

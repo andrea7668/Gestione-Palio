@@ -52,7 +52,7 @@ export default function Partita() {
         <div>
           <p className="sopra">Anno {partita?.anno}</p>
           <h1>{partita?.nome ?? '...'}</h1>
-          {io?.ruolo === 'sindaco' && <p className="aiuto">Codice per invitare i giocatori: <strong>{partita?.codice}</strong></p>}
+          {io?.ruolo === 'sindaco' && <p className="aiuto">Codice per invitare i giocatori: <strong className="codice">{partita?.codice}</strong></p>}
         </div>
         <Link className="btn btn-vuoto" href="/partite">Le tue partite</Link>
       </header>
