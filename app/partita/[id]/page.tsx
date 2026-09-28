@@ -46,6 +46,13 @@ export default function Partita() {
     carica();
   }
 
+  async function elimina() {
+    if (window.confirm('Eliminare definitivamente questa partita? Non si può annullare.') === false) return;
+    const r = await chiama({ azione: 'elimina', partita_id: id });
+    if (r.ok) router.push('/partite');
+    else alert(r.error);
+  }
+
   return (
     <main className="pagina">
       <header className="intesta">
@@ -54,7 +61,10 @@ export default function Partita() {
           <h1>{partita?.nome ?? '...'}</h1>
           {io?.ruolo === 'sindaco' && <p className="aiuto">Codice per invitare i giocatori: <strong className="codice">{partita?.codice}</strong></p>}
         </div>
-        <Link className="btn btn-vuoto" href="/partite">Le tue partite</Link>
+        <div className="azioni" style={{ marginTop: 0 }}>
+          <Link className="btn btn-vuoto" href="/partite">Le tue partite</Link>
+          {io?.ruolo === 'sindaco' && <button className="btn btn-vuoto" onClick={elimina}>Elimina partita</button>}
+        </div>
       </header>
 
       {io?.ruolo === 'sindaco' && (

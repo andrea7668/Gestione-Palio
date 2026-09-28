@@ -46,5 +46,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  if (b.azione === 'elimina') { await db.from('partite').delete().eq('id', b.partita_id); return NextResponse.json({ ok: true }); }
   return err('Azione sconosciuta.');
 }

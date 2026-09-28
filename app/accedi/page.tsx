@@ -34,7 +34,7 @@ export default function Accedi() {
 
   return (
     <main className="centro">
-      <div className="carta">
+      <form className="carta" onSubmit={(e) => { e.preventDefault(); invia(); }}>
         <h2>{reg ? 'Crea il tuo account' : 'Accedi'}</h2>
         <p className="aiuto">{reg ? 'Registrati, poi inserisci il codice PALIO ricevuto dal Sindaco per entrare nella partita.' : 'Entra con il tuo nome utente e la tua password.'}</p>
         {reg && (<>
@@ -45,13 +45,13 @@ export default function Accedi() {
         <label>Password<input className="campo" type="password" value={f.password} onChange={set('password')} /></label>
         {reg && <label>Conferma password<input className="campo" type="password" value={f.conferma} onChange={set('conferma')} /></label>}
         {err && <p className="errore">{err}</p>}
-        <button className="btn" onClick={invia} disabled={busy}>{reg ? 'Registrati' : 'Entra'}</button>
+        <button className="btn" type="submit" disabled={busy}>{reg ? 'Registrati' : 'Entra'}</button>
         <p className="aiuto centrato">
           {reg ? 'Hai già un account? ' : 'Non hai un account? '}
           <a href="#" onClick={(e) => { e.preventDefault(); setReg(!reg); setErr(null); }}>{reg ? 'Accedi' : 'Registrati'}</a>
         </p>
         <Link href="/" className="aiuto centrato">Torna alla home</Link>
-      </div>
+      </form>
     </main>
   );
 }
