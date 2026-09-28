@@ -36,7 +36,7 @@ export default function Home() {
     setErrore(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setErrore('Email o password non corrette.');
+      setErrore('Email o password non corrette. Controlla e riprova.');
       return;
     }
     setLoggato(true);
@@ -50,39 +50,31 @@ export default function Home() {
   }
 
   return (
-    <main style={{ maxWidth: 460, margin: '40px auto', padding: '0 16px', fontFamily: 'Georgia, serif' }}>
-      <h1 style={{ marginBottom: 24 }}>Palio Sim</h1>
+    <main className="scena">
+      <h1 className="titolo">Palio Sim</h1>
+      <p className="sottotitolo">Entra nella tua contrada e tratta con i fantini.</p>
 
       {!loggato ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="carta">
+          <input className="campo" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ padding: 10, border: '1px solid #999', borderRadius: 4 }}
-          />
-          <input
+            className="campo"
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && login()}
-            style={{ padding: 10, border: '1px solid #999', borderRadius: 4 }}
           />
-          <button onClick={login} style={{ padding: 10, cursor: 'pointer' }}>Accedi</button>
-          {errore && <p style={{ color: '#8a3324' }}>{errore}</p>}
+          <button className="bottone" onClick={login}>Entra in contrada</button>
+          {errore && <p className="errore">{errore}</p>}
         </div>
       ) : (
         <>
-          <button onClick={logout} style={{ marginBottom: 16, cursor: 'pointer' }}>Esci</button>
+          <button className="bottone-tenue" onClick={logout}>Esci</button>
           {fantino ? (
-            <FantinoChat
-              fantinoId={fantino.id}
-              fantinoNome={fantino.nome}
-              fantinoSoprannome={fantino.soprannome ?? undefined}
-            />
+            <FantinoChat fantinoId={fantino.id} fantinoNome={fantino.nome} fantinoSoprannome={fantino.soprannome ?? undefined} />
           ) : (
-            <p>Nessun fantino trovato.</p>
+            <p className="sottotitolo">Nessun fantino disponibile al momento.</p>
           )}
         </>
       )}
