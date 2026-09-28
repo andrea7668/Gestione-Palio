@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
   if (userError || !userData.user) {
-    return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    return NextResponse.json({ error: 'Non autorizzato: ' + (userError?.message ?? 'nessun utente') }, { status: 401 });
   }
   const userId = userData.user.id;
 
