@@ -34,7 +34,7 @@ export default function FantinoChat({ fantinoId, fantinoNome, fantinoSoprannome 
         .eq('fantino_id', fantinoId)
         .order('creato_il', { ascending: true })
         .order('id', { ascending: true })
-        .limit(200);
+        //.limit(200); //numero messaggi che vengono visualizzati nella chat 
       if (data) setMessaggi(data as Messaggio[]);
     }
     caricaStorico();

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const { count } = await supabase
     .from('chat_messaggi')
     .select('id', { count: 'exact', head: true })
-    .eq('utente_id', userId)
+    .eq('utente_id', userId).eq('autore', 'utente')
     .gte('creato_il', daQuando);
 
   if ((count ?? 0) > MAX_MESSAGGI_FINESTRA) {
