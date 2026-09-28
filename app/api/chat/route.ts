@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
     .select('autore, contenuto')
     .eq('contrada_id', profile.contrada_id)
     .eq('fantino_id', fantino_id)
-    .order('creato_il', { ascending: false })
-    .limit(20);
+    .order('creato_il', { ascending: false }).order('id', { ascending: false })
+    .limit(40);
 
   const cronologia = (storico ?? []).slice().reverse();
 

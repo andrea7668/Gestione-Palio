@@ -24,6 +24,23 @@ export default function FantinoChat({ fantinoId, fantinoNome, fantinoSoprannome 
   const fine = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    async function caricaStorico() {
+      const { data: profilo } = await supabase.from('profiles').select('contrada_id').single();
+      if (!profilo) return;
+      const { data } = await supabase
+        .from('chat_messaggi')
+        .select('autore, contenuto')
+        .eq('contrada_id', profilo.contrada_id)
+        .eq('fantino_id', fantinoId)
+        .order('creato_il', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(200);
+      if (data) setMessaggi(data as Messaggio[]);
+    }
+    caricaStorico();
+  }, [fantinoId]);
+
+  useEffect(() => {
     fine.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messaggi, caricando]);
 
