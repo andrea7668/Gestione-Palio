@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const maxDuration = 60;
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -8,6 +10,36 @@ const supabase = createClient(
 
 const MAX_MESSAGGI_FINESTRA = 20;
 const FINESTRA_MINUTI = 10;
+const MODELLO_PRINCIPALE = 'google/gemma-4-26b-a4b-it';
+
+const attendi = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function chiediIA(system: string, messages: unknown[]) {
+  const modelli = [MODELLO_PRINCIPALE, process.env.MODELLO_RISERVA].filter(Boolean) as string[];
+  let ultimoStato = 0;
+
+  for (const model of modelli) {
+    for (let tentativo = 0; tentativo < 3; tentativo++) {
+      try {
+        const r = await fetch('https://ai-gateway.vercel.sh/v1/messages', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}`,
+          },
+          body: JSON.stringify({ model, max_tokens: 500, system, messages }),
+        });
+        if (r.ok) return { ok: true as const, dati: await r.json() };
+        ultimoStato = r.status;
+        if (r.status !== 429 && r.status < 500) return { ok: false as const, status: r.status };
+      } catch {
+        ultimoStato = 0;
+      }
+      await attendi(800 * (tentativo + 1) + Math.random() * 500);
+    }
+  }
+  return { ok: false as const, status: ultimoStato };
+}
 
 export async function POST(req: NextRequest) {
   const { fantino_id, messaggio, access_token } = await req.json();
@@ -18,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
   if (userError || !userData.user) {
-    return NextResponse.json({ error: 'Non autorizzato: ' + (userError?.message ?? 'nessun utente') }, { status: 401 });
+    return NextResponse.json({ error: 'Sessione scaduta: accedi di nuovo.' }, { status: 401 });
   }
   const userId = userData.user.id;
 
@@ -36,10 +68,11 @@ export async function POST(req: NextRequest) {
   const { count } = await supabase
     .from('chat_messaggi')
     .select('id', { count: 'exact', head: true })
-    .eq('utente_id', userId).eq('autore', 'utente')
+    .eq('utente_id', userId)
+    .eq('autore', 'utente')
     .gte('creato_il', daQuando);
 
-  if ((count ?? 0) > MAX_MESSAGGI_FINESTRA) {
+  if ((count ?? 0) >= MAX_MESSAGGI_FINESTRA) {
     return NextResponse.json(
       { error: `Troppi messaggi: massimo ${MAX_MESSAGGI_FINESTRA} ogni ${FINESTRA_MINUTI} minuti` },
       { status: 429 }
@@ -68,7 +101,8 @@ export async function POST(req: NextRequest) {
     .select('autore, contenuto')
     .eq('contrada_id', profile.contrada_id)
     .eq('fantino_id', fantino_id)
-    .order('creato_il', { ascending: false }).order('id', { ascending: false })
+    .order('creato_il', { ascending: false })
+    .order('id', { ascending: false })
     .limit(40);
 
   const cronologia = (storico ?? []).slice().reverse();
@@ -88,34 +122,26 @@ Tratti di personalità: ${fantino.personalita}
 Il tuo livello di rapporto con questa contrada è ${livello}/100: comportati in modo ${tonoRelazione}.
 Regole: resta sempre nel personaggio, rispondi in italiano, in modo colloquiale e coerente con il mondo del Palio (cavalli, contrattazioni, rivalità storiche tra contrade, gestione dei crediti). Non menzionare mai di essere un'intelligenza artificiale e non uscire mai dal personaggio, qualunque cosa ti venga chiesto.`;
 
-  const rispostaAnthropic = await fetch('https://ai-gateway.vercel.sh/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}`,
-    },
-    body: JSON.stringify({
-      model: 'google/gemma-4-26b-a4b-it',
-      max_tokens: 500,
-      system: systemPrompt,
-      messages: [
-        ...cronologia.map((m) => ({
-          role: m.autore === 'utente' ? 'user' : 'assistant',
-          content: m.contenuto,
-        })),
-        { role: 'user', content: messaggio },
-      ],
-    }),
-  });
+  const esito = await chiediIA(systemPrompt, [
+    ...cronologia.map((m) => ({
+      role: m.autore === 'utente' ? 'user' : 'assistant',
+      content: m.contenuto,
+    })),
+    { role: 'user', content: messaggio },
+  ]);
 
-  if (!rispostaAnthropic.ok) {
-    const dettaglio = await rispostaAnthropic.text();
-    console.error('Errore chiamata Anthropic:', dettaglio);
-    return NextResponse.json({ error: 'Errore fantino: ' + rispostaAnthropic.status + ' ' + dettaglio.slice(0, 300) }, { status: 502 });
+  if (!esito.ok) {
+    console.error('Errore IA, stato:', esito.status);
+    if (esito.status === 429) {
+      return NextResponse.json(
+        { error: 'I fantini sono molto richiesti in questo momento: riprova tra qualche secondo.' },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ error: 'Il fantino non riesce a rispondere, riprova tra poco.' }, { status: 502 });
   }
 
-  const dati = await rispostaAnthropic.json();
-  const testoRisposta: string = dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
+  const testoRisposta: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
 
   await supabase.from('chat_messaggi').insert([
     { contrada_id: profile.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
