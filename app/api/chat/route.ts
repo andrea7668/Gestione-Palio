@@ -95,7 +95,7 @@ Regole: resta sempre nel personaggio, rispondi in italiano, in modo colloquiale 
       Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}`,
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-sonnet-5',
+      model: 'google/gemma-4-26b-a4b-it',
       max_tokens: 500,
       system: systemPrompt,
       messages: [
