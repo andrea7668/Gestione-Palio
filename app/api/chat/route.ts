@@ -111,7 +111,7 @@ Regole: resta sempre nel personaggio, rispondi in italiano, in modo colloquiale 
   if (!rispostaAnthropic.ok) {
     const dettaglio = await rispostaAnthropic.text();
     console.error('Errore chiamata Anthropic:', dettaglio);
-    return NextResponse.json({ error: 'Errore nella risposta del fantino' }, { status: 502 });
+    return NextResponse.json({ error: 'Errore fantino: ' + rispostaAnthropic.status + ' ' + dettaglio.slice(0, 300) }, { status: 502 });
   }
 
   const dati = await rispostaAnthropic.json();
