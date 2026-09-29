@@ -17,7 +17,8 @@ export default function Partita() {
   const [io, setIo] = useState<{ ruolo: string | null; contrada_id: string | null } | null>(null);
   const [membri, setMembri] = useState<Membro[]>([]);
   const [contrade, setContrade] = useState<Contrada[]>([]);
-  const [fantino, setFantino] = useState<Fantino | null>(null);
+  const [fantini, setFantini] = useState<Fantino[]>([]);
+  const [fantinoScelto, setFantinoScelto] = useState<Fantino | null>(null);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -34,8 +35,8 @@ export default function Partita() {
       setContrade(c ?? []);
     }
     if (m.contrada_id) {
-      const { data: f } = await supabase.from('fantini').select('id, nome, soprannome').limit(1).single();
-      setFantino(f);
+      const { data: f } = await supabase.from('fantini').select('id, nome, soprannome').order('nome');
+      setFantini(f ?? []);
     }
   }, [id, router]);
 
@@ -80,8 +81,31 @@ export default function Partita() {
       {io && io.ruolo !== 'sindaco' && !io.contrada_id && (
         <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>
       )}
-      {io?.contrada_id && fantino && (
-        <FantinoChat partitaId={id} fantinoId={fantino.id} fantinoNome={fantino.nome} fantinoSoprannome={fantino.soprannome ?? undefined} />
+
+      {io?.contrada_id && !fantinoScelto && (
+        <section className="carta">
+          <h2>Fantini</h2>
+          {fantini.length === 0 && <p className="aiuto">Nessun fantino disponibile al momento.</p>}
+          <div className="griglia">
+            {fantini.map((f) => (
+              <button key={f.id} className="btn btn-vuoto" onClick={() => setFantinoScelto(f)} style={{ textAlign: 'left' }}>
+                {f.nome}{f.soprannome ? ` — detto ${f.soprannome}` : ''}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {io?.contrada_id && fantinoScelto && (
+        <>
+          <button className="btn btn-vuoto" style={{ alignSelf: 'flex-start' }} onClick={() => setFantinoScelto(null)}>← Tutti i fantini</button>
+          <FantinoChat
+            partitaId={id}
+            fantinoId={fantinoScelto.id}
+            fantinoNome={fantinoScelto.nome}
+            fantinoSoprannome={fantinoScelto.soprannome ?? undefined}
+          />
+        </>
       )}
     </main>
   );
