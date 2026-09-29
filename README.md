@@ -12,6 +12,7 @@ Ogni fantino è gestito tramite un'intelligenza artificiale e possiede una propr
 
 ### 🏇 La tratta
 
+<<<<<<< HEAD
 Durante la tratta verranno scelti **35** cavalli, in questa fase giocatori possono discutere con i fantini e cercare di raggiungere accordi riguardo alle possibili monte.
 
 ### 💰 L'assegnazione
@@ -19,12 +20,25 @@ Durante la tratta verranno scelti **35** cavalli, in questa fase giocatori posso
 Nella fase di assegnazione ogni Contrada riceve un cavallo.
 
 In questa fase i giocatori possono utilizzare i **Crediti**, la valuta del gioco, per cercare di ottenere determinati fantini oppure per concludere accordi con altre Contrade, ad esempio per favorire una Contrada alleata, o se stessi, oppure ostacolare una Contrada rivale.
+=======
+Durante la tratta i giocatori possono discutere con i fantini e cercare di raggiungere accordi riguardo alle possibili monte.
+
+### 💰 L'assegnazione
+
+Nella fase di assegnazione ogni Contrada riceve un fantino.
+
+In questa fase i giocatori possono utilizzare i **Crediti**, la valuta del gioco, per cercare di ottenere determinati fantini oppure per concludere accordi con altre Contrade, ad esempio per favorire una Contrada alleata o ostacolare una Contrada rivale.
+>>>>>>> adf7a0086e4fa3319f58f824ccb97692a4ea31ae
 
 ### 👥 Ruoli dei giocatori
 
 Ogni partita prevede diversi ruoli.
 
+<<<<<<< HEAD
 I giocatori possono assumere il ruolo di **Capitano** o **Mangino**.
+=======
+I giocatori possono assumere il ruolo di **Capitano** o **Mangino**. Al momento i due ruoli hanno gli stessi poteri, ma potranno essere differenziati nelle successive fasi di sviluppo del progetto.
+>>>>>>> adf7a0086e4fa3319f58f824ccb97692a4ea31ae
 
 È inoltre presente il ruolo di **Sindaco**, che ha il compito di amministrare la partita e gestirne lo svolgimento.
 
