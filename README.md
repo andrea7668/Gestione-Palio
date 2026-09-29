@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestione del Palio di Siena
 
-## Getting Started
+L'obiettivo del progetto è creare un sito web interattivo che simuli la gestione di una Contrada del Palio di Siena, sia durante i giorni del Palio sia durante il periodo dell'“inverno”, attraverso una serie di meccaniche gestionali, diplomatiche e strategiche.
 
-First, run the development server:
+Il gioco è strutturato in diverse fasi:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### ❄️ L'inverno
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Durante l'inverno i giocatori possono costruire e migliorare i rapporti con i fantini e interagire con le altre dirigenze delle Contrade.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Ogni fantino è gestito tramite un'intelligenza artificiale e possiede una propria personalità. Il rapporto con ciascuna Contrada è indipendente e viene rappresentato attraverso un livello compreso tra **0 e 100**, che influenza le interazioni e le possibilità di accordo.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🏇 La tratta
 
-## Learn More
+Durante la tratta i giocatori possono discutere con i fantini e cercare di raggiungere accordi riguardo alle possibili monte.
 
-To learn more about Next.js, take a look at the following resources:
+### 💰 L'assegnazione
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Nella fase di assegnazione ogni Contrada riceve un fantino.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+In questa fase i giocatori possono utilizzare i **Crediti**, la valuta del gioco, per cercare di ottenere determinati fantini oppure per concludere accordi con altre Contrade, ad esempio per favorire una Contrada alleata o ostacolare una Contrada rivale.
 
-## Deploy on Vercel
+### 👥 Ruoli dei giocatori
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ogni partita prevede diversi ruoli.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+I giocatori possono assumere il ruolo di **Capitano** o **Mangino**. Al momento i due ruoli hanno gli stessi poteri, ma potranno essere differenziati nelle successive fasi di sviluppo del progetto.
+
+È inoltre presente il ruolo di **Sindaco**, che ha il compito di amministrare la partita e gestirne lo svolgimento.
+
+Il Sindaco può:
+
+* gestire le diverse fasi della partita;
+* decidere quando passare alla fase successiva;
+* assegnare le Contrade ai giocatori;
+* assegnare i Crediti;
+* gestire gli aspetti amministrativi della partita.
+
+### 🤖 Intelligenza artificiale
+
+I fantini interagiscono con i giocatori attraverso un sistema di conversazione basato sull'intelligenza artificiale.
+
+Ogni fantino dispone di:
+
+* una propria personalità;
+* caratteristiche e comportamenti specifici;
+* un livello di rapporto differente con ogni Contrada;
+* una memoria delle interazioni, che permette di rendere le conversazioni coerenti con il rapporto instaurato.
+
+L'obiettivo è creare un'esperienza in cui le decisioni dei giocatori, i rapporti con i fantini e le relazioni con le altre Contrade contribuiscano allo sviluppo della partita.
