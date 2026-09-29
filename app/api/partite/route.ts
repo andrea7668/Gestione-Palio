@@ -52,14 +52,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (b.azione === 'crediti') {
-    if (!(Number(b.importo) > 0)) return err('L\'importo deve essere maggiore di zero.');
-    if (!b.motivo?.trim()) return err('Inserisci un motivo.');
+    const importo = Number(b.importo);
+    if (!(importo > 0)) return err("L'importo deve essere maggiore di zero.");
 
     const { error } = await db.from('movimenti_crediti').insert({
       partita_id: b.partita_id,
       contrada_id: b.contrada_id,
-      importo: Number(b.importo),
-      motivo: b.motivo.trim(),
+      importo,
+      motivo: `Aggiunta di ${importo} crediti`,
       tipo: 'assegnazione',
     });
 

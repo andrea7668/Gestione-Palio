@@ -53,3 +53,27 @@ label{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:14px}
 @media(prefers-reduced-motion:reduce){.scrive i{animation:none}}
 .barra{display:flex;gap:10px;padding:12px;border-top:1px solid var(--linea)}.barra .campo{flex:1;min-width:0}
 .codice{display:inline-block;background:#efe9df;border:1px dashed var(--oro);border-radius:8px;padding:4px 12px;font:600 15px ui-monospace,Menlo,monospace;letter-spacing:.08em;user-select:all}
+select.campo{
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9'><path d='M1 1l6 6 6-6' stroke='%236b1f28' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;cursor:pointer
+}
+select.campo:hover{border-color:var(--vino)}
+
+.riga-giocatore{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--linea)}
+.riga-giocatore:last-child{border-bottom:none}
+.riga-nome{flex:1 1 180px;font-weight:500}
+.riga-crediti{display:flex;align-items:center;gap:8px;margin-left:auto}
+.campo-piccolo{width:80px}
+.saldo-pill{background:#efe9df;border:1px solid var(--oro);color:var(--vino);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:600;white-space:nowrap}
+.saldo-pill.grande{font-size:15px;padding:6px 16px}
+
+.carta-io{gap:10px}
+.mio-riepilogo{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.tag-ruolo,.tag-contrada{background:var(--vino);color:#fff;border-radius:99px;padding:4px 14px;font-size:13px;font-weight:600}
+.tag-contrada{background:var(--oro);color:#3a2a20}
+
+@media (max-width:700px){
+  .riga-giocatore{flex-direction:column;align-items:stretch}
+  .riga-crediti{margin-left:0}
+}

@@ -9,7 +9,8 @@ import FantinoChat from '../../../components/FantinoChat';
 type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
 type Contrada = { id: string; nome: string };
 type Fantino = { id: string; nome: string; soprannome: string | null };
-type Movimento = { contrada_id: string; importo: number; motivo: string; creato_il: string };
+type Movimento = { contrada_id: string; importo: number };
+type MioProfilo = { nome: string; cognome: string; username: string } | null;
 
 export default function Partita() {
   const { id } = useParams<{ id: string }>();
@@ -21,27 +22,38 @@ export default function Partita() {
   const [fantini, setFantini] = useState<Fantino[]>([]);
   const [fantinoScelto, setFantinoScelto] = useState<Fantino | null>(null);
   const [movimenti, setMovimenti] = useState<Movimento[]>([]);
+  const [mioProfilo, setMioProfilo] = useState<MioProfilo>(null);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) return router.replace('/accedi');
-    const { data: m } = await supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', s.session.user.id).single();
-    if (!m) return router.replace('/partite');
-    setIo(m);
-    const { data: p } = await supabase.from('partite').select('nome, anno, codice').eq('id', id).single();
-    setPartita(p);
-    if (m.ruolo === 'sindaco') {
-      const r = await chiama({ azione: 'membri', partita_id: id });
-      setMembri(r.membri ?? []);
-      const { data: c } = await supabase.from('contrade').select('id, nome').order('nome');
-      setContrade(c ?? []);
+    const uid = s.session.user.id;
+
+    const [mRes, pRes, cRes, moRes, profRes] = await Promise.all([
+      supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', uid).single(),
+      supabase.from('partite').select('nome, anno, codice').eq('id', id).single(),
+      supabase.from('contrade').select('id, nome').order('nome'),
+      supabase.from('movimenti_crediti').select('contrada_id, importo').eq('partita_id', id),
+      supabase.from('profiles').select('nome, cognome, username').eq('id', uid).single(),
+    ]);
+
+    if (!mRes.data) return router.replace('/partite');
+    setIo(mRes.data);
+    setPartita(pRes.data);
+    setContrade(cRes.data ?? []);
+    setMovimenti(moRes.data ?? []);
+    setMioProfilo(profRes.data ?? null);
+
+    const attese: PromiseLike<void>[] = [];
+    if (mRes.data.ruolo === 'sindaco') {
+      attese.push(chiama({ azione: 'membri', partita_id: id }).then((r) => setMembri(r.membri ?? [])));
     }
-    if (m.contrada_id) {
-      const { data: f } = await supabase.from('fantini').select('id, nome, soprannome').order('nome');
-      setFantini(f ?? []);
+    if (mRes.data.contrada_id) {
+      attese.push(
+        supabase.from('fantini').select('id, nome, soprannome').order('nome').then(({ data: f }) => setFantini(f ?? []))
+      );
     }
-    const { data: mo } = await supabase.from('movimenti_crediti').select('contrada_id, importo, motivo, creato_il').eq('partita_id', id);
-    setMovimenti(mo ?? []);
+    await Promise.all(attese);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
@@ -61,6 +73,17 @@ export default function Partita() {
   const saldoContrada = (contrada_id: string) =>
     movimenti.filter((m) => m.contrada_id === contrada_id).reduce((tot, m) => tot + m.importo, 0);
 
+  async function assegnaCrediti(contrada_id: string, importo: number) {
+    setMovimenti((prev) => [...prev, { contrada_id, importo }]); // aggiornamento immediato
+    const r = await chiama({ azione: 'crediti', partita_id: id, contrada_id, importo });
+    if (!r.ok) {
+      setMovimenti((prev) => prev.slice(0, -1)); // annulla se il server rifiuta
+      alert(r.error);
+    }
+  }
+
+  const nomeContrada = (contrada_id: string | null) => contrade.find((c) => c.id === contrada_id)?.nome;
+
   return (
     <main className="pagina">
       <header className="intesta">
@@ -68,9 +91,6 @@ export default function Partita() {
           <p className="sopra">Anno {partita?.anno}</p>
           <h1>{partita?.nome ?? '...'}</h1>
           {io?.ruolo === 'sindaco' && <p className="aiuto">Codice per invitare i giocatori: <strong className="codice">{partita?.codice}</strong></p>}
-          {io && io.ruolo !== 'sindaco' && io.contrada_id && (
-            <p className="aiuto">Crediti disponibili: <strong>{saldoContrada(io.contrada_id)}</strong></p>
-          )}
         </div>
         <div className="azioni" style={{ marginTop: 0 }}>
           <Link className="btn btn-vuoto" href="/partite">Le tue partite</Link>
@@ -78,30 +98,31 @@ export default function Partita() {
         </div>
       </header>
 
+      {io && io.ruolo !== 'sindaco' && (
+        <section className="carta carta-io">
+          <p className="sopra">Bentornato, {mioProfilo?.nome} {mioProfilo?.cognome} · {mioProfilo?.username}</p>
+          <div className="mio-riepilogo">
+            <span className="tag-ruolo">{io.ruolo === 'mangino' ? 'Mangino' : 'Capitano'}</span>
+            {io.contrada_id ? (
+              <>
+                <span className="tag-contrada">{nomeContrada(io.contrada_id) ?? '...'}</span>
+                <span className="saldo-pill grande">{saldoContrada(io.contrada_id)} crediti</span>
+              </>
+            ) : (
+              <span className="aiuto">In attesa che il Sindaco ti assegni una Contrada</span>
+            )}
+          </div>
+        </section>
+      )}
+
       {io?.ruolo === 'sindaco' && (
         <section className="carta">
           <h2>Giocatori</h2>
           {membri.filter((m) => m.ruolo !== 'sindaco').length === 0 && <p className="aiuto">Nessun giocatore ancora. Condividi il codice della partita.</p>}
           {membri.filter((m) => m.ruolo !== 'sindaco').map((m) => (
-            <RigaGiocatore key={m.utente_id} m={m} contrade={contrade} salva={assegna} />
+            <RigaGiocatore key={m.utente_id} m={m} contrade={contrade} salva={assegna} saldoContrada={saldoContrada} assegnaCrediti={assegnaCrediti} />
           ))}
         </section>
-      )}
-
-      {io?.ruolo === 'sindaco' && (
-        <PannelloCrediti
-          contrade={contrade}
-          saldoContrada={saldoContrada}
-          assegna={async (contrada_id, importo, motivo) => {
-            const r = await chiama({ azione: 'crediti', partita_id: id, contrada_id, importo, motivo });
-            if (!r.ok) { alert(r.error); return; }
-            carica();
-          }}
-        />
-      )}
-
-      {io && io.ruolo !== 'sindaco' && !io.contrada_id && (
-        <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>
       )}
 
       {io?.contrada_id && !fantinoScelto && (
@@ -133,12 +154,29 @@ export default function Partita() {
   );
 }
 
-function RigaGiocatore({ m, contrade, salva }: { m: Membro; contrade: Contrada[]; salva: (u: string, r: string, c: string) => void }) {
+function RigaGiocatore({
+  m, contrade, salva, saldoContrada, assegnaCrediti,
+}: {
+  m: Membro;
+  contrade: Contrada[];
+  salva: (u: string, r: string, c: string) => void;
+  saldoContrada: (contrada_id: string) => number;
+  assegnaCrediti: (contrada_id: string, importo: number) => void;
+}) {
   const [ruolo, setRuolo] = useState(m.ruolo ?? '');
   const [contrada, setContrada] = useState(m.contrada_id ?? '');
+  const [importo, setImporto] = useState('');
+
+  function inviaCrediti() {
+    const n = Number(importo);
+    if (!m.contrada_id || !n || n <= 0) return;
+    assegnaCrediti(m.contrada_id, n);
+    setImporto('');
+  }
+
   return (
-    <div className="riga">
-      <span>{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
+    <div className="riga-giocatore">
+      <span className="riga-nome">{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
       <select className="campo" value={ruolo} onChange={(e) => setRuolo(e.target.value)}>
         <option value="">Ruolo</option>
         <option value="capitano">Capitano</option>
@@ -149,45 +187,14 @@ function RigaGiocatore({ m, contrade, salva }: { m: Membro; contrade: Contrada[]
         {contrade.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
       </select>
       <button className="btn" onClick={() => salva(m.utente_id, ruolo, contrada)}>Salva</button>
-    </div>
-  );
-}
 
-function PannelloCrediti({
-  contrade, saldoContrada, assegna,
-}: {
-  contrade: Contrada[];
-  saldoContrada: (contrada_id: string) => number;
-  assegna: (contrada_id: string, importo: number, motivo: string) => void;
-}) {
-  const [contradaScelta, setContradaScelta] = useState('');
-  const [importo, setImporto] = useState('');
-  const [motivo, setMotivo] = useState('');
-
-  function invia() {
-    const n = Number(importo);
-    if (!contradaScelta || !n || n <= 0 || !motivo.trim()) return;
-    assegna(contradaScelta, n, motivo.trim());
-    setImporto('');
-    setMotivo('');
-  }
-
-  return (
-    <section className="carta">
-      <h2>Crediti</h2>
-      {contrade.map((c) => (
-        <div className="riga" key={c.id}>
-          <span>{c.nome}</span>
-          <strong>{saldoContrada(c.id)}</strong>
+      {m.contrada_id && (
+        <div className="riga-crediti">
+          <span className="saldo-pill">{saldoContrada(m.contrada_id)} crediti</span>
+          <input className="campo campo-piccolo" type="number" min={1} placeholder="+" value={importo} onChange={(e) => setImporto(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && inviaCrediti()} />
+          <button className="btn btn-vuoto" onClick={inviaCrediti}>Assegna</button>
         </div>
-      ))}
-      <select className="campo" value={contradaScelta} onChange={(e) => setContradaScelta(e.target.value)}>
-        <option value="">Contrada</option>
-        {contrade.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-      </select>
-      <input className="campo" type="number" min={1} placeholder="Importo" value={importo} onChange={(e) => setImporto(e.target.value)} />
-      <input className="campo" placeholder="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-      <button className="btn" onClick={invia}>Assegna crediti</button>
-    </section>
+      )}
+    </div>
   );
 }
