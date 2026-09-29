@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   if (b.azione === 'assegna') {
     await db.from('membri').update({ ruolo: b.ruolo || null, contrada_id: b.contrada_id || null })
       .eq('partita_id', b.partita_id).eq('utente_id', b.utente_id);
-    await db.from('profiles').update({ contrada_id: b.contrada_id || null, ruolo: b.ruolo || 'contradaiolo' }).eq('id', b.utente_id);
+    await db.from('profiles').update({ contrada_id: b.contrada_id || null, ruolo: b.ruolo || 'capitano' }).eq('id', b.utente_id);
     return NextResponse.json({ ok: true });
   }
 

@@ -95,7 +95,7 @@ function RigaGiocatore({ m, contrade, salva }: { m: Membro; contrade: Contrada[]
       <span>{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
       <select className="campo" value={ruolo} onChange={(e) => setRuolo(e.target.value)}>
         <option value="">Ruolo</option>
-        <option value="contradaiolo">Contradaiolo</option>
+        <option value="capitano">Capitano</option>
         <option value="mangino">Mangino</option>
       </select>
       <select className="campo" value={contrada} onChange={(e) => setContrada(e.target.value)}>
