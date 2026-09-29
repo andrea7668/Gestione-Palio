@@ -81,7 +81,7 @@ export default function Partita() {
         <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>
       )}
       {io?.contrada_id && fantino && (
-        <FantinoChat fantinoId={fantino.id} fantinoNome={fantino.nome} fantinoSoprannome={fantino.soprannome ?? undefined} />
+        <FantinoChat partitaId={id} fantinoId={fantino.id} fantinoNome={fantino.nome} fantinoSoprannome={fantino.soprannome ?? undefined} />
       )}
     </main>
   );

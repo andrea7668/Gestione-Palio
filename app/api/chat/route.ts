@@ -42,9 +42,9 @@ async function chiediIA(system: string, messages: unknown[]) {
 }
 
 export async function POST(req: NextRequest) {
-  const { fantino_id, messaggio, access_token } = await req.json();
+  const { partita_id, fantino_id, messaggio, access_token } = await req.json();
 
-  if (!fantino_id || !messaggio || !access_token) {
+  if (!partita_id || !fantino_id || !messaggio || !access_token) {
     return NextResponse.json({ error: 'Parametri mancanti' }, { status: 400 });
   }
 
@@ -54,14 +54,15 @@ export async function POST(req: NextRequest) {
   }
   const userId = userData.user.id;
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+  const { data: membro, error: membroError } = await supabase
+    .from('membri')
     .select('contrada_id, ruolo')
-    .eq('id', userId)
+    .eq('partita_id', partita_id)
+    .eq('utente_id', userId)
     .single();
 
-  if (profileError || !profile) {
-    return NextResponse.json({ error: 'Profilo di gioco non trovato' }, { status: 404 });
+  if (membroError || !membro || !membro.contrada_id) {
+    return NextResponse.json({ error: 'Non fai parte di questa partita o non hai ancora una Contrada assegnata.' }, { status: 403 });
   }
 
   const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();
@@ -92,14 +93,16 @@ export async function POST(req: NextRequest) {
   const { data: relazione } = await supabase
     .from('relazioni_contrada_fantino')
     .select('livello')
-    .eq('contrada_id', profile.contrada_id)
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
     .eq('fantino_id', fantino_id)
     .single();
 
   const { data: storico } = await supabase
     .from('chat_messaggi')
     .select('autore, contenuto')
-    .eq('contrada_id', profile.contrada_id)
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
     .eq('fantino_id', fantino_id)
     .order('creato_il', { ascending: false })
     .order('id', { ascending: false })
@@ -144,8 +147,8 @@ Regole: resta sempre nel personaggio, rispondi in italiano, in modo colloquiale 
   const testoRisposta: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
 
   await supabase.from('chat_messaggi').insert([
-    { contrada_id: profile.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
-    { contrada_id: profile.contrada_id, fantino_id, autore: 'fantino', utente_id: userId, contenuto: testoRisposta },
+    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
+    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'fantino', utente_id: userId, contenuto: testoRisposta },
   ]);
 
   return NextResponse.json({ risposta: testoRisposta });

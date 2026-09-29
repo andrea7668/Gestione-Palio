@@ -11,12 +11,13 @@ const supabase = createClient(
 type Messaggio = { autore: 'utente' | 'fantino'; contenuto: string };
 
 interface Props {
+  partitaId: string;
   fantinoId: string;
   fantinoNome: string;
   fantinoSoprannome?: string;
 }
 
-export default function FantinoChat({ fantinoId, fantinoNome, fantinoSoprannome }: Props) {
+export default function FantinoChat({ partitaId, fantinoId, fantinoNome, fantinoSoprannome }: Props) {
   const [messaggi, setMessaggi] = useState<Messaggio[]>([]);
   const [testo, setTesto] = useState('');
   const [caricando, setCaricando] = useState(false);
@@ -24,21 +25,16 @@ export default function FantinoChat({ fantinoId, fantinoNome, fantinoSoprannome 
   const fine = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function caricaStorico() {
-      const { data: profilo } = await supabase.from('profiles').select('contrada_id').single();
-      if (!profilo) return;
-      const { data } = await supabase
-        .from('chat_messaggi')
-        .select('autore, contenuto')
-        .eq('contrada_id', profilo.contrada_id)
-        .eq('fantino_id', fantinoId)
-        .order('creato_il', { ascending: true })
-        .order('id', { ascending: true })
-        //.limit(200); //numero messaggi che vengono visualizzati nella chat 
-      if (data) setMessaggi(data as Messaggio[]);
-    }
-    caricaStorico();
-  }, [fantinoId]);
+    supabase
+      .from('chat_messaggi')
+      .select('autore, contenuto')
+      .eq('partita_id', partitaId)
+      .eq('fantino_id', fantinoId)
+      .order('creato_il', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(200)
+      .then(({ data }) => { if (data) setMessaggi(data as Messaggio[]); });
+  }, [partitaId, fantinoId]);
 
   useEffect(() => {
     fine.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -60,6 +56,7 @@ export default function FantinoChat({ fantinoId, fantinoNome, fantinoSoprannome 
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          partita_id: partitaId,
           fantino_id: fantinoId,
           messaggio,
           access_token: sessione.session?.access_token,
