@@ -24,17 +24,19 @@ export default function Partita() {
   const [movimenti, setMovimenti] = useState<Movimento[]>([]);
   const [mioProfilo, setMioProfilo] = useState<MioProfilo>(null);
 
-  const carica = useCallback(async () => {
+    const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) return router.replace('/accedi');
     const uid = s.session.user.id;
 
-    const [mRes, pRes, cRes, moRes, profRes] = await Promise.all([
+    const [mRes, pRes, cRes, moRes, profRes, memRes, fanRes] = await Promise.all([
       supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', uid).single(),
       supabase.from('partite').select('nome, anno, codice').eq('id', id).single(),
       supabase.from('contrade').select('id, nome').order('nome'),
       supabase.from('movimenti_crediti').select('contrada_id, importo').eq('partita_id', id),
       supabase.from('profiles').select('nome, cognome, username').eq('id', uid).single(),
+      supabase.from('membri').select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)').eq('partita_id', id),
+      supabase.from('fantini').select('id, nome, soprannome').order('nome'),
     ]);
 
     if (!mRes.data) return router.replace('/partite');
@@ -43,17 +45,8 @@ export default function Partita() {
     setContrade(cRes.data ?? []);
     setMovimenti(moRes.data ?? []);
     setMioProfilo(profRes.data ?? null);
-
-    const attese: PromiseLike<void>[] = [];
-    if (mRes.data.ruolo === 'sindaco') {
-      attese.push(chiama({ azione: 'membri', partita_id: id }).then((r) => setMembri(r.membri ?? [])));
-    }
-    if (mRes.data.contrada_id) {
-      attese.push(
-        supabase.from('fantini').select('id, nome, soprannome').order('nome').then(({ data: f }) => setFantini(f ?? []))
-      );
-    }
-    await Promise.all(attese);
+    if (mRes.data.ruolo === 'sindaco') setMembri((memRes.data as unknown as Membro[]) ?? []);
+    if (mRes.data.contrada_id) setFantini(fanRes.data ?? []);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
