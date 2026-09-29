@@ -46,6 +46,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  if (b.azione === 'elimina') { await db.from('partite').delete().eq('id', b.partita_id); return NextResponse.json({ ok: true }); }
+  if (b.azione === 'elimina') {
+    await db.from('partite').delete().eq('id', b.partita_id);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (b.azione === 'crediti') {
+    if (!(Number(b.importo) > 0)) return err('L\'importo deve essere maggiore di zero.');
+    if (!b.motivo?.trim()) return err('Inserisci un motivo.');
+
+    const { error } = await db.from('movimenti_crediti').insert({
+      partita_id: b.partita_id,
+      contrada_id: b.contrada_id,
+      importo: Number(b.importo),
+      motivo: b.motivo.trim(),
+      tipo: 'assegnazione',
+    });
+
+    if (error) return err('Assegnazione non riuscita.', 500);
+    return NextResponse.json({ ok: true });
+  }
+
   return err('Azione sconosciuta.');
 }
