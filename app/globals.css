@@ -103,3 +103,4 @@ select.campo:hover{border-color:var(--vino)}
   .menu-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
   .layout-contenuto{padding-top:56px}
 }
+.menu-avatar-foto{object-fit:cover;border:2px solid rgba(255,255,255,.4)}

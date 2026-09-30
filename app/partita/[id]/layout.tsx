@@ -57,7 +57,7 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
 
       <aside className={`menu-laterale${aperto ? ' aperto' : ''}`}>
         <div className="menu-intesta">
-          <div className="menu-avatar" aria-hidden="true">🐎</div>
+          <AvatarContrada nomeContrada={ctx?.nomeContrada ?? null} />
           <div className="menu-info">
             <p className="menu-etichetta">Partita attiva</p>
             <p className="menu-nome">{ctx?.nomePartita || '...'}</p>
@@ -86,5 +86,24 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
 
       <div className="layout-contenuto">{children}</div>
     </div>
+  );
+}
+function AvatarContrada({ nomeContrada }: { nomeContrada: string | null }) {
+  const [tentativo, setTentativo] = useState<'png' | 'jpg' | 'niente'>('png');
+
+  useEffect(() => { setTentativo('png'); }, [nomeContrada]);
+
+  if (!nomeContrada || tentativo === 'niente') {
+    return <div className="menu-avatar" aria-hidden="true">🐎</div>;
+  }
+
+  const slug = nomeContrada.toLowerCase();
+  return (
+    <img
+      className="menu-avatar menu-avatar-foto"
+      src={`/contrade/${slug}.${tentativo}`}
+      alt={nomeContrada}
+      onError={() => setTentativo(tentativo === 'png' ? 'jpg' : 'niente')}
+    />
   );
 }
