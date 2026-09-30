@@ -88,12 +88,14 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
     </div>
   );
 }
+const estensioniFoto = ['png', 'jpg', 'PNG', 'JPG', 'jpeg'] as const;
+
 function AvatarContrada({ nomeContrada }: { nomeContrada: string | null }) {
-  const [tentativo, setTentativo] = useState<'png' | 'jpg' | 'niente'>('png');
+  const [indice, setIndice] = useState(0);
 
-  useEffect(() => { setTentativo('png'); }, [nomeContrada]);
+  useEffect(() => { setIndice(0); }, [nomeContrada]);
 
-  if (!nomeContrada || tentativo === 'niente') {
+  if (!nomeContrada || indice >= estensioniFoto.length) {
     return <div className="menu-avatar" aria-hidden="true">🐎</div>;
   }
 
@@ -101,9 +103,9 @@ function AvatarContrada({ nomeContrada }: { nomeContrada: string | null }) {
   return (
     <img
       className="menu-avatar menu-avatar-foto"
-      src={`/contrade/${slug}.${tentativo}`}
+      src={`/contrade/${slug}.${estensioniFoto[indice]}`}
       alt={nomeContrada}
-      onError={() => setTentativo(tentativo === 'png' ? 'jpg' : 'niente')}
+      onError={() => setIndice((i) => i + 1)}
     />
   );
 }

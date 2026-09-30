@@ -104,3 +104,40 @@ select.campo:hover{border-color:var(--vino)}
   .layout-contenuto{padding-top:56px}
 }
 .menu-avatar-foto{object-fit:cover;border:2px solid rgba(255,255,255,.4)}
+.pagina-fantini{padding:24px;position:relative;min-height:100%}
+.griglia-fantini{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.scheda-fantino{background:var(--carta);border:1px solid var(--linea);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.scheda-fantino-testa{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.scheda-fantino-testa h3{font-size:1.15rem;margin:0}
+.scheda-fantino-testa em{color:var(--tenue);font-style:italic;font-size:.85em}
+.badge-etichetta{background:#efe9df;color:var(--vino);border:1px solid var(--oro);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.scheda-fantino-sotto{color:var(--tenue);font-size:13px;margin:-6px 0 0}
+.righe-stat{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13.5px}
+.righe-stat span{color:var(--tenue)}
+.box-mossa{display:flex;justify-content:space-between;align-items:center;background:#f3efe6;border-radius:8px;padding:8px 12px;font-weight:600}
+.due-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box-curve{background:#f3efe6;border-radius:8px;padding:10px 12px;font-size:12.5px}
+.box-curve-titolo{font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin:0 0 6px;color:var(--vino)}
+.box-curve div{display:flex;justify-content:space-between;color:var(--tenue)}
+.box-curve div strong{color:var(--testo)}
+.box-azione{background:#f3efe6;border-radius:8px;padding:10px 12px;text-align:center}
+.box-azione p{margin:0 0 4px;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;color:var(--vino)}
+.box-azione strong{font-size:1.3rem;display:block}
+.box-azione span{font-size:11px;color:var(--tenue)}
+.box-rapporto{background:#f3efe6;border-radius:8px;padding:10px 12px;font-size:12px}
+.box-rapporto>span{color:var(--tenue);text-transform:uppercase;letter-spacing:.03em;font-size:11px}
+.box-rapporto div{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+.box-rapporto strong{font-size:1.2rem}
+.box-rapporto.positivo{background:#f7e7e9}
+.box-rapporto.negativo{background:#eceaf3}
+
+.chat-fantini-fab{position:fixed;bottom:22px;right:22px;background:var(--vino);color:#fff;border:none;border-radius:99px;padding:13px 22px;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;z-index:30}
+.chat-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:flex-end;padding:24px;z-index:35}
+.chat-overlay-pannello{position:relative;background:var(--carta);border-radius:14px;width:100%;max-width:420px;max-height:80vh;overflow:auto;padding:16px}
+.chat-overlay-chiudi{position:absolute;top:8px;right:10px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--tenue)}
+.chat-overlay-lista{display:flex;flex-direction:column;gap:8px}
+
+@media(max-width:700px){
+  .due-box{grid-template-columns:1fr}
+  .chat-overlay{padding:10px}
+}
