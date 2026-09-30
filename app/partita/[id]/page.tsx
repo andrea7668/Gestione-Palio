@@ -171,7 +171,7 @@ function RigaGiocatore({
     <div className="riga-giocatore">
       <span className="riga-nome">{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
       <select className="campo" value={ruolo} onChange={(e) => setRuolo(e.target.value)}>
-        <option value="">Ruolo</option>
+        <option value="Ruolo">Ruolo</option> {/* aggiunto valiue = ruolo */}
         <option value="capitano">Capitano</option>
         <option value="mangino">Mangino</option>
       </select>

@@ -78,3 +78,23 @@ select.campo:hover{border-color:var(--vino)}
   .riga-giocatore{flex-direction:column;align-items:stretch}
   .riga-crediti{margin-left:0}
 }
+.layout-partita{display:flex;min-height:100dvh;align-items:flex-start}
+.menu-laterale{position:relative;width:250px;flex-shrink:0;background:var(--vino);color:#f3e9e3;display:flex;flex-direction:column;padding:22px 14px;min-height:100dvh;transition:width .2s ease,padding .2s ease}
+.layout-partita.chiuso .menu-laterale{width:0;padding:22px 0;overflow:hidden}
+.menu-intesta{display:flex;gap:12px;align-items:center;padding:6px 8px 18px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:14px}
+.menu-avatar{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);display:grid;place-items:center;font-size:22px;flex-shrink:0}
+.menu-info{min-width:0}
+.menu-etichetta{font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin:0}
+.menu-nome{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:700;margin:2px 0 0;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu-sotto{font-size:12px;opacity:.85;margin:2px 0 0}
+.menu-voci{display:flex;flex-direction:column;gap:4px}
+.menu-voce{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#f3e9e3;text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap}
+.menu-voce.attiva{background:#fff;color:var(--vino);font-weight:700}
+.menu-voce.disabilitata{opacity:.45;cursor:default}
+.menu-voce:not(.disabilitata):not(.attiva):hover{background:rgba(255,255,255,.12)}
+.menu-icona{width:20px;text-align:center;flex-shrink:0}
+.menu-freccia{position:absolute;top:22px;right:-14px;width:28px;height:28px;border-radius:50%;background:var(--vino);color:#fff;border:2px solid var(--crema);display:grid;place-items:center;cursor:pointer;font-size:14px;z-index:5}
+.layout-contenuto{flex:1;min-width:0}
+@media(max-width:820px){
+  .menu-laterale{position:fixed;inset:0 auto 0 0;z-index:20;box-shadow:2px 0 12px rgba(0,0,0,.3)}
+}

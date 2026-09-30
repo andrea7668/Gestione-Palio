@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   if (b.azione === 'crediti') {
     const importo = Number(b.importo);
-    if (!(importo > 0)) return err("L'importo deve essere maggiore di zero.");
+    //if (!(importo > 0)) return err("L'importo deve essere maggiore di zero.");
 
     const { error } = await db.from('movimenti_crediti').insert({
       partita_id: b.partita_id,
