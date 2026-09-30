@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
@@ -20,31 +20,42 @@ const voci = [
 export default function LayoutPartita({ children }: { children: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const pathname = usePathname();
-  const [aperto, setAperto] = useState(true);
+  const [aperto, setAperto] = useState(false);
   const [ctx, setCtx] = useState<Contesto>(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data: s } = await supabase.auth.getSession();
-      if (!s.session) return;
-      const [{ data: p }, { data: m }] = await Promise.all([
-        supabase.from('partite').select('nome').eq('id', id).single(),
-        supabase.from('membri').select('ruolo, contrada_id, contrade(nome)').eq('partita_id', id).eq('utente_id', s.session.user.id).single(),
-      ]);
-      const membro = m as unknown as RigaMembro | null;
-      setCtx({
-        nomePartita: p?.nome ?? '',
-        ruolo: membro?.ruolo ?? null,
-        nomeContrada: membro?.contrade?.nome ?? null,
-      });
-    })();
+  const carica = useCallback(async () => {
+    const { data: s } = await supabase.auth.getSession();
+    if (!s.session) return;
+    const [{ data: p }, { data: m }] = await Promise.all([
+      supabase.from('partite').select('nome').eq('id', id).single(),
+      supabase.from('membri').select('ruolo, contrada_id, contrade(nome)').eq('partita_id', id).eq('utente_id', s.session.user.id).single(),
+    ]);
+    const membro = m as unknown as RigaMembro | null;
+    setCtx({
+      nomePartita: p?.nome ?? '',
+      ruolo: membro?.ruolo ?? null,
+      nomeContrada: membro?.contrade?.nome ?? null,
+    });
   }, [id]);
+
+  useEffect(() => { carica(); }, [carica]);
+
+  useEffect(() => {
+    const canale = supabase
+      .channel(`layout-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'membri', filter: `partita_id=eq.${id}` }, () => carica())
+      .subscribe();
+    return () => { supabase.removeChannel(canale); };
+  }, [id, carica]);
 
   const etichettaRuolo = ctx?.ruolo === 'mangino' ? 'Mangino' : ctx?.ruolo === 'sindaco' ? 'Sindaco' : ctx?.ruolo === 'capitano' ? 'Capitano' : 'In attesa';
 
   return (
-    <div className={`layout-partita${aperto ? '' : ' chiuso'}`}>
-      <aside className="menu-laterale">
+    <div className="layout-partita">
+      <button className="menu-amburger" onClick={() => setAperto((a) => !a)} aria-label="Apri/chiudi menu">☰</button>
+      {aperto && <div className="menu-overlay" onClick={() => setAperto(false)} />}
+
+      <aside className={`menu-laterale${aperto ? ' aperto' : ''}`}>
         <div className="menu-intesta">
           <div className="menu-avatar" aria-hidden="true">🐎</div>
           <div className="menu-info">
@@ -61,7 +72,7 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
             const href = `/partita/${id}${v.href ? '/' + v.href : ''}`;
             const attiva = v.href === '' ? pathname === `/partita/${id}` : !!pathname?.startsWith(href);
             return v.attiva ? (
-              <Link key={v.nome} href={href} className={`menu-voce${attiva ? ' attiva' : ''}`}>
+              <Link key={v.nome} href={href} className={`menu-voce${attiva ? ' attiva' : ''}`} onClick={() => setAperto(false)}>
                 <span className="menu-icona">{v.icona}</span>{v.nome}
               </Link>
             ) : (
@@ -72,10 +83,6 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
           })}
         </nav>
       </aside>
-
-      <button className="menu-freccia" onClick={() => setAperto((a) => !a)} aria-label={aperto ? 'Comprimi menu' : 'Espandi menu'}>
-        {aperto ? '‹' : '›'}
-      </button>
 
       <div className="layout-contenuto">{children}</div>
     </div>

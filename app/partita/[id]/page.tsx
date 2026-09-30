@@ -45,9 +45,16 @@ export default function Partita() {
 
   useEffect(() => { carica(); }, [carica]);
 
+  useEffect(() => {
+    const canale = supabase
+      .channel(`partita-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'membri', filter: `partita_id=eq.${id}` }, () => carica())
+      .subscribe();
+    return () => { supabase.removeChannel(canale); };
+  }, [id, carica]);
+
   async function assegna(utente_id: string, ruolo: string, contrada_id: string) {
     await chiama({ azione: 'assegna', partita_id: id, utente_id, ruolo, contrada_id });
-    carica();
   }
 
   async function elimina() {
