@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '../../../lib/supabase';
-import FantinoChat from '../../../components/FantinoChat';
+import { supabase } from '../../../../lib/supabase';
+import FantinoChat from '../../../../components/FantinoChat';
 
 type Fantino = { id: string; nome: string; soprannome: string | null };
 
