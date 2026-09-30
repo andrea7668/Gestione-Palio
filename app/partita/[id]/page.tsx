@@ -160,6 +160,14 @@ function RigaGiocatore({
   const [contrada, setContrada] = useState(m.contrada_id ?? '');
   const [importo, setImporto] = useState('');
 
+  function salvaAssegnazione() {
+    if (!ruolo || !contrada) {
+      alert('Scegli sia il ruolo che la Contrada prima di salvare.');
+      return;
+    }
+    salva(m.utente_id, ruolo, contrada);
+  }
+
   function inviaCrediti() {
     const n = Number(importo);
     if (!m.contrada_id || !n || n <= 0) return;
@@ -171,7 +179,7 @@ function RigaGiocatore({
     <div className="riga-giocatore">
       <span className="riga-nome">{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
       <select className="campo" value={ruolo} onChange={(e) => setRuolo(e.target.value)}>
-        <option value="Ruolo">Ruolo</option> {/* aggiunto valiue = ruolo */}
+        <option value="">Ruolo</option>
         <option value="capitano">Capitano</option>
         <option value="mangino">Mangino</option>
       </select>
@@ -179,7 +187,7 @@ function RigaGiocatore({
         <option value="">Contrada</option>
         {contrade.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
       </select>
-      <button className="btn" onClick={() => salva(m.utente_id, ruolo, contrada)}>Salva</button>
+      <button className="btn" onClick={salvaAssegnazione}>Salva</button>
 
       {m.contrada_id && (
         <div className="riga-crediti">

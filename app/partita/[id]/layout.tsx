@@ -40,7 +40,7 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
     })();
   }, [id]);
 
-  const etichettaRuolo = ctx?.ruolo === 'mangino' ? 'Mangino' : ctx?.ruolo === 'sindaco' ? 'Sindaco' : 'Capitano';
+  const etichettaRuolo = ctx?.ruolo === 'mangino' ? 'Mangino' : ctx?.ruolo === 'sindaco' ? 'Sindaco' : ctx?.ruolo === 'capitano' ? 'Capitano' : 'In attesa';
 
   return (
     <div className={`layout-partita${aperto ? '' : ' chiuso'}`}>
@@ -71,11 +71,11 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
             );
           })}
         </nav>
-
-        <button className="menu-freccia" onClick={() => setAperto((a) => !a)} aria-label={aperto ? 'Comprimi menu' : 'Espandi menu'}>
-          {aperto ? '‹' : '›'}
-        </button>
       </aside>
+
+      <button className="menu-freccia" onClick={() => setAperto((a) => !a)} aria-label={aperto ? 'Comprimi menu' : 'Espandi menu'}>
+        {aperto ? '‹' : '›'}
+      </button>
 
       <div className="layout-contenuto">{children}</div>
     </div>
