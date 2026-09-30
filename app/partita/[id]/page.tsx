@@ -4,11 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../lib/supabase';
-import FantinoChat from '../../../components/FantinoChat';
 
 type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
 type Contrada = { id: string; nome: string };
-type Fantino = { id: string; nome: string; soprannome: string | null };
 type Movimento = { contrada_id: string; importo: number };
 type MioProfilo = { nome: string; cognome: string; username: string } | null;
 
@@ -19,24 +17,21 @@ export default function Partita() {
   const [io, setIo] = useState<{ ruolo: string | null; contrada_id: string | null } | null>(null);
   const [membri, setMembri] = useState<Membro[]>([]);
   const [contrade, setContrade] = useState<Contrada[]>([]);
-  const [fantini, setFantini] = useState<Fantino[]>([]);
-  const [fantinoScelto, setFantinoScelto] = useState<Fantino | null>(null);
   const [movimenti, setMovimenti] = useState<Movimento[]>([]);
   const [mioProfilo, setMioProfilo] = useState<MioProfilo>(null);
 
-    const carica = useCallback(async () => {
+  const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) return router.replace('/accedi');
     const uid = s.session.user.id;
 
-    const [mRes, pRes, cRes, moRes, profRes, memRes, fanRes] = await Promise.all([
+    const [mRes, pRes, cRes, moRes, profRes, memRes] = await Promise.all([
       supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', uid).single(),
       supabase.from('partite').select('nome, anno, codice').eq('id', id).single(),
       supabase.from('contrade').select('id, nome').order('nome'),
       supabase.from('movimenti_crediti').select('contrada_id, importo').eq('partita_id', id),
       supabase.from('profiles').select('nome, cognome, username').eq('id', uid).single(),
       supabase.from('membri').select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)').eq('partita_id', id),
-      supabase.from('fantini').select('id, nome, soprannome').order('nome'),
     ]);
 
     if (!mRes.data) return router.replace('/partite');
@@ -46,7 +41,6 @@ export default function Partita() {
     setMovimenti(moRes.data ?? []);
     setMioProfilo(profRes.data ?? null);
     if (mRes.data.ruolo === 'sindaco') setMembri((memRes.data as unknown as Membro[]) ?? []);
-    if (mRes.data.contrada_id) setFantini(fanRes.data ?? []);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
@@ -67,10 +61,10 @@ export default function Partita() {
     movimenti.filter((m) => m.contrada_id === contrada_id).reduce((tot, m) => tot + m.importo, 0);
 
   async function assegnaCrediti(contrada_id: string, importo: number) {
-    setMovimenti((prev) => [...prev, { contrada_id, importo }]); // aggiornamento immediato
+    setMovimenti((prev) => [...prev, { contrada_id, importo }]);
     const r = await chiama({ azione: 'crediti', partita_id: id, contrada_id, importo });
     if (!r.ok) {
-      setMovimenti((prev) => prev.slice(0, -1)); // annulla se il server rifiuta
+      setMovimenti((prev) => prev.slice(0, -1));
       alert(r.error);
     }
   }
@@ -95,7 +89,7 @@ export default function Partita() {
         <section className="carta carta-io">
           <p className="sopra">Bentornato, {mioProfilo?.nome} {mioProfilo?.cognome} · {mioProfilo?.username}</p>
           <div className="mio-riepilogo">
-            <span className="tag-ruolo">{io.ruolo === 'mangino' ? 'Mangino' : 'Capitano'}</span>
+            <span className="tag-ruolo">{io.ruolo === 'mangino' ? 'Mangino' : io.ruolo === 'capitano' ? 'Capitano' : 'In attesa'}</span>
             {io.contrada_id ? (
               <>
                 <span className="tag-contrada">{nomeContrada(io.contrada_id) ?? '...'}</span>
@@ -116,32 +110,6 @@ export default function Partita() {
             <RigaGiocatore key={m.utente_id} m={m} contrade={contrade} salva={assegna} saldoContrada={saldoContrada} assegnaCrediti={assegnaCrediti} />
           ))}
         </section>
-      )}
-
-      {io?.contrada_id && !fantinoScelto && (
-        <section className="carta">
-          <h2>Fantini</h2>
-          {fantini.length === 0 && <p className="aiuto">Nessun fantino disponibile al momento.</p>}
-          <div className="griglia">
-            {fantini.map((f) => (
-              <button key={f.id} className="btn btn-vuoto" onClick={() => setFantinoScelto(f)} style={{ textAlign: 'left' }}>
-                {f.nome}{f.soprannome ? ` — detto ${f.soprannome}` : ''}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {io?.contrada_id && fantinoScelto && (
-        <>
-          <button className="btn btn-vuoto" style={{ alignSelf: 'flex-start' }} onClick={() => setFantinoScelto(null)}>← Tutti i fantini</button>
-          <FantinoChat
-            partitaId={id}
-            fantinoId={fantinoScelto.id}
-            fantinoNome={fantinoScelto.nome}
-            fantinoSoprannome={fantinoScelto.soprannome ?? undefined}
-          />
-        </>
       )}
     </main>
   );
