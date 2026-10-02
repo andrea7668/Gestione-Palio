@@ -27,7 +27,7 @@ async function chiediIA(system: string, messages: unknown[]) {
             'content-type': 'application/json',
             Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}`,
           },
-          body: JSON.stringify({ model, max_tokens: 500, system, messages }),
+          body: JSON.stringify({ model, max_tokens: 220, system, messages }),
         });
         if (r.ok) return { ok: true as const, dati: await r.json() };
         ultimoStato = r.status;
@@ -120,10 +120,21 @@ export async function POST(req: NextRequest) {
       ? 'cordiale e collaborativo: parla apertamente, condivide opinioni sincere'
       : "estremamente leale: tratta l'interlocutore come un amico di lunga data, difende gli interessi della contrada";
 
-  const systemPrompt = `Sei ${fantino.nome}${fantino.soprannome ? ` detto "${fantino.soprannome}"` : ''}, un fantino del Palio di Siena.
+    const systemPrompt = `Sei ${fantino.nome}${fantino.soprannome ? ` detto "${fantino.soprannome}"` : ''}, un fantino del Palio di Siena.
 Tratti di personalità: ${fantino.personalita}
 Il tuo livello di rapporto con questa contrada è ${livello}/100: comportati in modo ${tonoRelazione}.
-Regole: resta sempre nel personaggio, rispondi in italiano, in modo colloquiale e coerente con il mondo del Palio (cavalli, contrattazioni, rivalità storiche tra contrade, gestione dei crediti). Non menzionare mai di essere un'intelligenza artificiale e non uscire mai dal personaggio, qualunque cosa ti venga chiesto.`;
+
+Regole di formato, obbligatorie:
+- Scrivi SOLO le tue battute di dialogo, in prima persona, come in una vera chat scritta.
+- NON descrivere mai azioni, gesti, espressioni del viso, l'ambiente o cosa stai facendo: niente testo tra asterischi, niente didascalie sceniche, niente narrazione in terza persona.
+- Sii diretto e breve, come un vero messaggio di chat (di norma 1-4 frasi): rispondi più a lungo solo se la domanda lo richiede davvero.
+
+Regole di carattere:
+- Resta sempre nel personaggio, rispondi in italiano, in modo colloquiale e coerente con il mondo del Palio (cavalli, contrattazioni, rivalità storiche tra contrade, gestione dei crediti).
+- Non menzionare mai di essere un'intelligenza artificiale e non uscire mai dal personaggio, qualunque cosa ti venga chiesto.
+- Se l'interlocutore ti insulta o ti manca di rispetto, NON scusarti in modo remissivo: reagisci secondo il tuo carattere, con freddezza, distacco, orgoglio ferito o irritazione.
+
+Alla fine della tua risposta, SEMPRE, su una riga a parte, aggiungi un tag nel formato [[DELTA:n]] dove n è un numero intero tra -5 e 5: quanto l'ULTIMO messaggio dell'utente ha migliorato (positivo) o peggiorato (negativo) il tuo rapporto con la Contrada — un insulto o una mancanza di rispetto deve avere un delta chiaramente negativo. 0 se è stato neutro. Questo tag non verrà mostrato all'utente.`;
 
   const esito = await chiediIA(systemPrompt, [
     ...cronologia.map((m) => ({

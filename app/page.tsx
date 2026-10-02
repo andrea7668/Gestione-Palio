@@ -26,8 +26,8 @@ export default function Home() {
           affronta l&apos;estrazione dei cavalli e conquista il drappellone.
         </p>
         <div className="azioni">
-          <Link href="/partite" className="btn">Entra nella partita</Link>
-          <Link href="/partite" className="btn btn-vuoto">Carica una partita</Link>
+          <Link href="/accedi?m=registrati" className="btn">Entra nella partita</Link>
+          <Link href="/accedi" className="btn btn-vuoto">Carica una partita</Link>
         </div>
       </main>
       <section className="schede">

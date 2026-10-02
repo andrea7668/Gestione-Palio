@@ -2,20 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 
 const mail = (u: string) => u.trim().toLowerCase() + '@giocodelpalio.it';
 
 export default function Accedi() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [reg, setReg] = useState(false);
   const [f, setF] = useState({ nome: '', cognome: '', username: '', password: '', conferma: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => { setReg(window.location.search.includes('registrati')); }, []);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+
+  useEffect(() => { 
+    // Legge direttamente il parametro 'm'
+    setReg(searchParams.get('m') === 'registrati'); 
+  }, [searchParams]);
 
   async function invia() {
     setErr(null);
