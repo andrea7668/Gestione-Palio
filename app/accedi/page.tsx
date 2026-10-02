@@ -16,10 +16,7 @@ export default function Accedi() {
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
-  useEffect(() => { 
-    // Legge direttamente il parametro 'm'
-    setReg(searchParams.get('m') === 'registrati'); 
-  }, [searchParams]);
+  useEffect(() => { setReg(window.location.search.includes('registrati')); }, []);
 
   async function invia() {
     setErr(null);
