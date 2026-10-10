@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../lib/supabase';
+import { FASI, INFO_FASI } from '../../../lib/fasi';
+import { useFase } from '../../../lib/contesto-fase';
 
 type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
 type Contrada = { id: string; nome: string };
@@ -13,12 +15,20 @@ type MioProfilo = { nome: string; cognome: string; username: string } | null;
 export default function Partita() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { fase, ricarica } = useFase();
   const [partita, setPartita] = useState<{ nome: string; anno: number; codice: string } | null>(null);
   const [io, setIo] = useState<{ ruolo: string | null; contrada_id: string | null } | null>(null);
   const [membri, setMembri] = useState<Membro[]>([]);
   const [contrade, setContrade] = useState<Contrada[]>([]);
   const [movimenti, setMovimenti] = useState<Movimento[]>([]);
   const [mioProfilo, setMioProfilo] = useState<MioProfilo>(null);
+  const [nuova, setNuova] = useState(false);
+  const faseAnt = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (fase && faseAnt.current && faseAnt.current !== fase) setNuova(true);
+    if (fase) faseAnt.current = fase;
+  }, [fase]);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -64,8 +74,19 @@ export default function Partita() {
     else alert(r.error);
   }
 
+  async function avanzaFase() {
+    if (!fase) return;
+    const i = FASI.indexOf(fase);
+    if (i < 0 || i >= FASI.length - 1) return;
+    const prossima = FASI[i + 1];
+    if (window.confirm(`Passare a ${INFO_FASI[prossima].nome}? Tutti i giocatori vedranno il cambio subito.`) === false) return;
+    const r = await chiama({ azione: 'cambia_fase', partita_id: id });
+    if (!r.ok) { alert(r.error); return; }
+    ricarica();
+  }
+
   const saldoContrada = (contrada_id: string) =>
-    movimenti.filter((m) => m.contrada_id === contrada_id).reduce((tot, m) => tot + m.importo, 0);
+    movimenti.filter((m) => m.contrada_id === contrada_id).reduce((tot, m) => tot + Number(m.importo), 0);
 
   async function assegnaCrediti(contrada_id: string, importo: number) {
     setMovimenti((prev) => [...prev, { contrada_id, importo }]);
@@ -77,6 +98,7 @@ export default function Partita() {
   }
 
   const nomeContrada = (contrada_id: string | null) => contrade.find((c) => c.id === contrada_id)?.nome;
+  const indiceFase = fase ? FASI.indexOf(fase) : -1;
 
   return (
     <main className="pagina">
@@ -91,6 +113,41 @@ export default function Partita() {
           {io?.ruolo === 'sindaco' && <button className="btn btn-vuoto" onClick={elimina}>Elimina partita</button>}
         </div>
       </header>
+
+      {io?.ruolo === 'sindaco' && fase && (
+        <section className="carta">
+          <h2>Fasi di gioco</h2>
+          <div className="fasi-lista">
+            {FASI.map((f, i) => {
+              const stato = i < indiceFase ? 'fatta' : i === indiceFase ? 'attiva' : 'futura';
+              return (
+                <div key={f} className={`fase-riga ${stato}`}>
+                  <span className="fase-icona">{stato === 'fatta' ? '✓' : stato === 'attiva' ? '●' : '○'}</span>
+                  <div>
+                    <p className="fase-nome">{INFO_FASI[f].nome}</p>
+                    <p className="fase-sotto">{INFO_FASI[f].sotto}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {indiceFase < FASI.length - 1 ? (
+            <button className="btn" onClick={avanzaFase}>Passa a {INFO_FASI[FASI[indiceFase + 1]].nome} →</button>
+          ) : (
+            <p className="aiuto centrato">Ultima fase raggiunta.</p>
+          )}
+        </section>
+      )}
+
+      {io && io.ruolo !== 'sindaco' && fase && (
+        <section className="carta">
+          <div className="banner-fase-riga">
+            <strong>{INFO_FASI[fase].nome}</strong>
+            {nuova && <span className="tag-nuova">Nuova fase</span>}
+          </div>
+          <p className="aiuto">{INFO_FASI[fase].disponibile}</p>
+        </section>
+      )}
 
       {io && io.ruolo !== 'sindaco' && (
         <section className="carta carta-io">

@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import BarraSuperiore from '../../../components/BarraSuperiore';
+import { comeFase, type Fase } from '../../../lib/fasi';
+import { FaseContext } from '../../../lib/contesto-fase';
 
-type Contesto = { nomePartita: string; ruolo: string | null; nomeContrada: string | null } | null;
+type Contesto = { nomePartita: string; fase: Fase; ruolo: string | null; nomeContrada: string | null } | null;
 type RigaMembro = { ruolo: string | null; contrada_id: string | null; contrade: { nome: string } | null };
 
 const estensioniFoto = ['PNG', 'png', 'jpg', 'JPG', 'jpeg'] as const;
@@ -30,12 +32,13 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) return;
     const [{ data: p }, { data: m }] = await Promise.all([
-      supabase.from('partite').select('nome').eq('id', id).single(),
+      supabase.from('partite').select('nome, fase').eq('id', id).single(),
       supabase.from('membri').select('ruolo, contrada_id, contrade(nome)').eq('partita_id', id).eq('utente_id', s.session.user.id).single(),
     ]);
     const membro = m as unknown as RigaMembro | null;
     setCtx({
       nomePartita: p?.nome ?? '',
+      fase: comeFase(p?.fase),
       ruolo: membro?.ruolo ?? null,
       nomeContrada: membro?.contrade?.nome ?? null,
     });
@@ -47,6 +50,7 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
     const canale = supabase
       .channel(`layout-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'membri', filter: `partita_id=eq.${id}` }, () => carica())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'partite', filter: `id=eq.${id}` }, () => carica())
       .subscribe();
     return () => { supabase.removeChannel(canale); };
   }, [id, carica]);
@@ -88,7 +92,9 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
           </nav>
         </aside>
 
-        <div className="layout-contenuto">{children}</div>
+        <FaseContext.Provider value={{ fase: ctx?.fase ?? null, ricarica: carica }}>
+          <div className="layout-contenuto">{children}</div>
+        </FaseContext.Provider>
       </div>
     </>
   );
