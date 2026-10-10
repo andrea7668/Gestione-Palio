@@ -157,3 +157,28 @@ select.campo:hover{border-color:var(--vino)}
   .bs-logo{font-size:.85rem}
   .barra-superiore{padding:0 12px}
 }
+
+@media (max-width:700px){
+  .pagina{padding:20px 16px 48px;gap:28px}
+  .intesta{flex-direction:column;align-items:stretch;gap:16px;padding-bottom:20px}
+  .intesta h1{font-size:2.1rem}
+  .intesta .azioni{width:100%}
+  .intesta .azioni .btn,.intesta .azioni .btn-vuoto{flex:1;text-align:center}
+  .carta{padding:20px;gap:14px}
+  .carta h2{font-size:1.5rem;margin-bottom:4px}
+  .riga-giocatore{padding:16px 0;gap:12px}
+  .riga-crediti{width:100%;margin-left:0;justify-content:flex-start}
+  select.campo,input.campo{padding:12px 13px}
+  .griglia.due{gap:20px}
+}
+
+.fasi-lista{display:flex;flex-direction:column;gap:4px}
+.fase-riga{display:flex;gap:12px;align-items:center;padding:8px 10px;border-radius:8px}
+.fase-riga.attiva{background:#f7e7e9}
+.fase-riga.fatta{opacity:.65}
+.fase-icona{width:20px;text-align:center;color:var(--vino)}
+.fase-riga.futura .fase-icona{color:var(--tenue)}
+.fase-nome{margin:0;font-weight:600;font-size:15px}
+.fase-sotto{margin:0;font-size:13px;color:var(--tenue)}
+.banner-fase-riga{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tag-nuova{background:var(--oro);color:#3a2a20;border-radius:99px;padding:2px 12px;font-size:12px;font-weight:700}
