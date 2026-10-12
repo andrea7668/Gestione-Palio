@@ -12,8 +12,7 @@ type Fantino = {
   palii_corsi: number; vittorie: number; etichetta: string | null; stato: string; fascia: string | null;
   mossa: number; sanmartino_curva1: number; sanmartino_curva2: number; sanmartino_curva3: number;
   casato_curva1: number; casato_curva2: number; casato_curva3: number;
-    nerbate_disponibili: number; parate_disponibili: number; livello_base: number;
-  foto: string | null;
+  nerbate_disponibili: number; parate_disponibili: number; livello_base: number;
 };
 type TipoAttivita = { id: string; nome: string; costo_minimo: number; costo_massimo: number; variazione_massima: number };
 
@@ -36,7 +35,8 @@ export default function PaginaFantini() {
   const [sbloccati, setSbloccati] = useState<Set<string>>(new Set());
   const [tipiAttivita, setTipiAttivita] = useState<TipoAttivita[]>([]);
   const [caricato, setCaricato] = useState(false);
-  const [chatApertaCon, setChatApertaCon] = useState<Fantino | null>(null);
+  const [chatAperta, setChatAperta] = useState(false);
+  const [fantinoChat, setFantinoChat] = useState<Fantino | null>(null);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -93,11 +93,17 @@ export default function PaginaFantini() {
     carica();
   }
 
+  function chiudiChat() {
+    setChatAperta(false);
+    setFantinoChat(null);
+  }
+
   if (!caricato) return null;
 
   const eSindaco = ruolo === 'sindaco';
   if (!contradaId && !eSindaco) return <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>;
   const soloLettura = !contradaId;
+  const conChat = fantini.filter((f) => sbloccati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -120,25 +126,44 @@ export default function PaginaFantini() {
               nomeContrada={nomeContrada}
               soloLettura={soloLettura}
               tipiAttivita={tipiAttivita}
-              sbloccato={sbloccati.has(f.id)}
               onFaiAttivita={(tipoId, costo) => faiAttivita(f.id, tipoId, costo)}
               onContinuita={() => faiContinuita(f.id)}
-              onApriChat={() => setChatApertaCon(f)}
             />
           );
         })}
       </div>
 
-      {chatApertaCon && (
-        <div className="chat-overlay">
-          <div className="chat-overlay-pannello">
-            <button className="chat-overlay-chiudi" onClick={() => setChatApertaCon(null)}>×</button>
-            <FantinoChat
-              partitaId={id}
-              fantinoId={chatApertaCon.id}
-              fantinoNome={chatApertaCon.nome}
-              fantinoSoprannome={chatApertaCon.soprannome ?? undefined}
-            />
+      {!soloLettura && (
+        <button className="chat-fantini-fab" onClick={() => setChatAperta(true)}>💬 Chat fantini</button>
+      )}
+
+      {chatAperta && (
+        <div className="chat-overlay" onClick={chiudiChat}>
+          <div className="chat-overlay-pannello" onClick={(e) => e.stopPropagation()}>
+            <button className="chat-overlay-chiudi" onClick={chiudiChat} aria-label="Chiudi">×</button>
+            {fantinoChat ? (
+              <>
+                <button className="chat-overlay-indietro" onClick={() => setFantinoChat(null)}>← Fantini</button>
+                <FantinoChat
+                  partitaId={id}
+                  fantinoId={fantinoChat.id}
+                  fantinoNome={fantinoChat.nome}
+                  fantinoSoprannome={fantinoChat.soprannome ?? undefined}
+                />
+              </>
+            ) : (
+              <div className="chat-overlay-lista">
+                <h3>Con chi vuoi parlare?</h3>
+                {conChat.length === 0 && (
+                  <p className="aiuto">Non puoi ancora scrivere a nessuno: fai prima un&apos;iniziativa con un fantino.</p>
+                )}
+                {conChat.map((f) => (
+                  <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => setFantinoChat(f)}>
+                    {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -147,12 +172,12 @@ export default function PaginaFantini() {
 }
 
 function SchedaFantino({
-  f, livello, perc, nomeContrada, soloLettura, tipiAttivita, sbloccato, onFaiAttivita, onContinuita, onApriChat,
+  f, livello, perc, nomeContrada, soloLettura, tipiAttivita, onFaiAttivita, onContinuita,
 }: {
   f: Fantino; livello: number; perc: number | null; nomeContrada: string; soloLettura: boolean;
-  tipiAttivita: TipoAttivita[]; sbloccato: boolean;
+  tipiAttivita: TipoAttivita[];
   onFaiAttivita: (tipoId: string, costo: number) => Promise<{ successo: boolean; delta: number } | undefined>;
-  onContinuita: () => void; onApriChat: () => void;
+  onContinuita: () => void;
 }) {
   const [pannelloAperto, setPannelloAperto] = useState(false);
   const [tipoScelto, setTipoScelto] = useState('');
@@ -188,11 +213,8 @@ function SchedaFantino({
 
   return (
     <article className="scheda-fantino">
-            <header className="scheda-fantino-testa">
-        <div className="scheda-fantino-id">
-          <FotoFantino nome={f.nome} foto={f.foto} />
-          <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
-        </div>
+      <header className="scheda-fantino-testa">
+        <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
         {f.etichetta && <span className="badge-etichetta">{f.etichetta}</span>}
       </header>
       <p className="scheda-fantino-sotto">{f.stato}{f.fascia ? ` · ${f.fascia}` : ''}</p>
@@ -240,10 +262,6 @@ function SchedaFantino({
             <button className="btn btn-vuoto" onClick={onContinuita}>Colloquio di continuità</button>
           )}
 
-          {sbloccato && (
-            <button className="btn btn-vuoto" onClick={onApriChat}>💬 Parla con {f.nome}</button>
-          )}
-
           {pannelloAperto ? (
             <div className="pannello-iniziativa">
               <select className="campo" value={tipoScelto} onChange={(e) => sceglieTipo(e.target.value)}>
@@ -270,14 +288,4 @@ function SchedaFantino({
       )}
     </article>
   );
-}
-
-function FotoFantino({ nome, foto }: { nome: string; foto: string | null }) {
-  const [rotta, setRotta] = useState(false);
-
-  if (!foto || rotta) {
-    return <div className="foto-fantino foto-fantino-vuota" aria-hidden="true">{nome.charAt(0)}</div>;
-  }
-
-  return <img className="foto-fantino" src={`/fantini/${foto}`} alt={nome} onError={() => setRotta(true)} />;
 }

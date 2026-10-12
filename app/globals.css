@@ -186,3 +186,20 @@ select.campo:hover{border-color:var(--vino)}
 .scheda-fantino-id{display:flex;align-items:center;gap:12px;min-width:0}
 .foto-fantino{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--oro)}
 .foto-fantino-vuota{display:grid;place-items:center;background:var(--vino);color:#fff;font:700 20px 'Cormorant Garamond',serif}
+
+.pannello-iniziativa{display:flex;flex-direction:column;gap:12px;background:#f3efe6;border-radius:8px;padding:14px}
+.pannello-iniziativa label{font-size:13px;color:var(--tenue)}
+.pannello-iniziativa-bottoni{display:flex;gap:10px}
+.pannello-iniziativa-bottoni .btn{flex:1}
+.btn:disabled{opacity:.45;cursor:default}
+
+.chat-fantini-fab{position:fixed;bottom:22px;right:22px;background:var(--vino);color:#fff;border:none;border-radius:99px;padding:13px 22px;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;z-index:30}
+.chat-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:flex-end;padding:24px;z-index:35}
+.chat-overlay-pannello{position:relative;background:var(--carta);border-radius:14px;width:100%;max-width:420px;max-height:80vh;overflow:auto;padding:16px}
+.chat-overlay-chiudi{position:absolute;top:8px;right:10px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--tenue);z-index:2}
+.chat-overlay-indietro{background:none;border:none;color:var(--vino);font-weight:600;cursor:pointer;padding:0 0 10px;font-size:14px}
+.chat-overlay-lista{display:flex;flex-direction:column;gap:8px}
+
+@media(max-width:700px){
+  .chat-overlay{padding:10px}
+}
