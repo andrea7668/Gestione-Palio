@@ -61,14 +61,28 @@ export async function POST(req: NextRequest) {
     const delta = successo ? Math.max(1, Math.round(tipo.variazione_massima * proporzione)) : 0;
     const nuovoLivello = Math.max(0, Math.min(100, livelloAttuale + delta));
 
-    await Promise.all([
+    const messaggioRingraziamento = 'Grazie per l’iniziativa! Ho apprezzato il pensiero: spero che sia l’inizio di un bel rapporto con la tua Contrada.';
+    const risultati = await Promise.all([
       db.from('movimenti_crediti').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, importo: -costo, motivo: tipo.nome, tipo: 'spesa_attivita' }),
       db.from('relazioni_contrada_fantino').upsert(
         { partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, livello: nuovoLivello },
         { onConflict: 'partita_id,contrada_id,fantino_id' }
       ),
       db.from('attivita_svolte').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, tipo_attivita_id: b.tipo_attivita_id }),
+      db.from('chat_messaggi').insert({
+        partita_id: b.partita_id,
+        contrada_id: me.contrada_id,
+        fantino_id: b.fantino_id,
+        autore: 'fantino',
+        utente_id: uid,
+        contenuto: messaggioRingraziamento,
+      }),
     ]);
+
+    if (risultati.some(({ error }) => error)) {
+      console.error('Errore nel salvataggio dell’iniziativa o del ringraziamento:', risultati.map(({ error }) => error).filter(Boolean));
+      return err('Non è stato possibile completare l’iniziativa. Riprova.', 500);
+    }
 
     return NextResponse.json({ ok: true, successo, delta });
   }
@@ -125,10 +139,11 @@ export async function POST(req: NextRequest) {
     const { data: p } = await db.from('partite').select('fase').eq('id', b.partita_id).single();
     const elenco = FASI as readonly string[];
     const i = elenco.indexOf(p?.fase ?? 'inverno');
-    if (i === -1 || i >= elenco.length - 1) return err("Non c'è una fase successiva.");
-    const { error } = await db.from('partite').update({ fase: elenco[i + 1] }).eq('id', b.partita_id);
+    if (i === -1) return err('La fase corrente non è valida.');
+    const prossima = elenco[(i + 1) % elenco.length];
+    const { error } = await db.from('partite').update({ fase: prossima }).eq('id', b.partita_id);
     if (error) return err('Cambio fase non riuscita.', 500);
-    return NextResponse.json({ ok: true, fase: elenco[i + 1] });
+    return NextResponse.json({ ok: true, fase: prossima });
   }
 
   return err('Azione sconosciuta.');

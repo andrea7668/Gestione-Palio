@@ -88,6 +88,11 @@ export default function PaginaFantini() {
     const r = await chiama({ azione: 'fai_attivita', partita_id: id, fantino_id: fantinoId, tipo_attivita_id: tipoId, costo });
     if (!r.ok) { alert(r.error); return; }
     await carica();
+    const fantino = fantini.find((f) => f.id === fantinoId);
+    if (fantino) {
+      setFantinoChat(fantino);
+      setChatAperta(true);
+    }
     return { successo: r.successo as boolean, delta: r.delta as number };
   }
 
