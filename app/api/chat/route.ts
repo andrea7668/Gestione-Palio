@@ -65,6 +65,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Non fai parte di questa partita o non hai ancora una Contrada assegnata.' }, { status: 403 });
   }
 
+  const { data: svolte } = await supabase
+    .from('attivita_svolte')
+    .select('id')
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
+    .eq('fantino_id', fantino_id)
+    .limit(1);
+
+  if (!svolte || svolte.length === 0) {
+    return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
+  }
+
   const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();
   const { count } = await supabase
     .from('chat_messaggi')
@@ -110,7 +122,7 @@ export async function POST(req: NextRequest) {
 
   const cronologia = (storico ?? []).slice().reverse();
 
-  const livello = relazione?.livello ?? 0;
+  const livello = relazione?.livello ?? fantino.livello_base ?? 0;
   const tonoRelazione =
     livello < 20
       ? "diffidente e formale: tratta l'interlocutore come uno sconosciuto, parla poco e con cautela"
@@ -120,7 +132,7 @@ export async function POST(req: NextRequest) {
       ? 'cordiale e collaborativo: parla apertamente, condivide opinioni sincere'
       : "estremamente leale: tratta l'interlocutore come un amico di lunga data, difende gli interessi della contrada";
 
-    const systemPrompt = `Sei ${fantino.nome}${fantino.soprannome ? ` detto "${fantino.soprannome}"` : ''}, un fantino del Palio di Siena.
+  const systemPrompt = `Sei ${fantino.nome}${fantino.soprannome ? ` detto "${fantino.soprannome}"` : ''}, un fantino del Palio di Siena.
 Tratti di personalità: ${fantino.personalita}
 Il tuo livello di rapporto con questa contrada è ${livello}/100: comportati in modo ${tonoRelazione}.
 
@@ -134,7 +146,10 @@ Regole di carattere:
 - Non menzionare mai di essere un'intelligenza artificiale e non uscire mai dal personaggio, qualunque cosa ti venga chiesto.
 - Se l'interlocutore ti insulta o ti manca di rispetto, NON scusarti in modo remissivo: reagisci secondo il tuo carattere, con freddezza, distacco, orgoglio ferito o irritazione.
 
-Alla fine della tua risposta, SEMPRE, su una riga a parte, aggiungi un tag nel formato [[DELTA:n]] dove n è un numero intero tra -5 e 5: quanto l'ULTIMO messaggio dell'utente ha migliorato (positivo) o peggiorato (negativo) il tuo rapporto con la Contrada — un insulto o una mancanza di rispetto deve avere un delta chiaramente negativo. 0 se è stato neutro. Questo tag non verrà mostrato all'utente.`;
+Alla fine della tua risposta, SEMPRE, su una riga a parte, aggiungi un tag nel formato [[DELTA:n]] dove n è un numero intero tra -5 e 5.
+Usa 0 per la stragrande maggioranza dei messaggi: saluti, domande normali, chiacchiere, richieste di informazioni, piccole osservazioni. Il rapporto con un fantino non cambia ogni volta che si parla.
+Usa un numero diverso da 0 SOLO per momenti davvero notevoli: un insulto chiaro o una mancanza di rispetto grave (negativo, -2 o più forte), una minaccia (negativo), un gesto generoso o una dimostrazione di fiducia importante (positivo, +2 o più forte). Non usare mai 1 o -1: se una cosa non è abbastanza significativa da valere almeno 2, allora vale 0.
+Questo tag non verrà mostrato all'utente.`;
 
   const esito = await chiediIA(systemPrompt, [
     ...cronologia.map((m) => ({
@@ -155,12 +170,25 @@ Alla fine della tua risposta, SEMPRE, su una riga a parte, aggiungi un tag nel f
     return NextResponse.json({ error: 'Il fantino non riesce a rispondere, riprova tra poco.' }, { status: 502 });
   }
 
-  const testoRisposta: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
+  const grezzo: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
+  const trovato = grezzo.match(/\[\[\s*DELTA\s*:\s*([+-]?\d+)\s*\]\]/i);
+  const deltaGrezzo = trovato ? Math.max(-5, Math.min(5, parseInt(trovato[1], 10))) : 0;
+  const delta = Math.abs(deltaGrezzo) >= 2 ? deltaGrezzo : 0;
+  const testoRisposta = grezzo.replace(/\[\[\s*DELTA\s*:\s*[+-]?\d+\s*\]\]/gi, '').trim() || 'Non ho capito, ripeti pure.';
+
+  const nuovoLivello = Math.max(0, Math.min(100, livello + delta));
 
   await supabase.from('chat_messaggi').insert([
     { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
     { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'fantino', utente_id: userId, contenuto: testoRisposta },
   ]);
+
+  if (delta !== 0) {
+    await supabase.from('relazioni_contrada_fantino').upsert(
+      { partita_id, contrada_id: membro.contrada_id, fantino_id, livello: nuovoLivello },
+      { onConflict: 'partita_id,contrada_id,fantino_id' }
+    );
+  }
 
   return NextResponse.json({ risposta: testoRisposta });
 }

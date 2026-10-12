@@ -1,71 +1,194 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const err = (m: string, s = 400) => NextResponse.json({ error: m }, { status: s });
+export const maxDuration = 60;
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const MAX_MESSAGGI_FINESTRA = 20;
+const FINESTRA_MINUTI = 10;
+const MODELLO_PRINCIPALE = 'google/gemma-4-26b-a4b-it';
+
+const attendi = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function chiediIA(system: string, messages: unknown[]) {
+  const modelli = [MODELLO_PRINCIPALE, process.env.MODELLO_RISERVA].filter(Boolean) as string[];
+  let ultimoStato = 0;
+
+  for (const model of modelli) {
+    for (let tentativo = 0; tentativo < 3; tentativo++) {
+      try {
+        const r = await fetch('https://ai-gateway.vercel.sh/v1/messages', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY!}`,
+          },
+          body: JSON.stringify({ model, max_tokens: 220, system, messages }),
+        });
+        if (r.ok) return { ok: true as const, dati: await r.json() };
+        ultimoStato = r.status;
+        if (r.status !== 429 && r.status < 500) return { ok: false as const, status: r.status };
+      } catch {
+        ultimoStato = 0;
+      }
+      await attendi(800 * (tentativo + 1) + Math.random() * 500);
+    }
+  }
+  return { ok: false as const, status: ultimoStato };
+}
 
 export async function POST(req: NextRequest) {
-  const b = await req.json();
-  const { data: u } = await db.auth.getUser(b.access_token);
-  if (!u.user) return err('Sessione scaduta: accedi di nuovo.', 401);
-  const uid = u.user.id;
+  const { partita_id, fantino_id, messaggio, access_token } = await req.json();
 
-  if (b.azione === 'crea') {
-    if (!process.env.ADMIN_CODE || b.codice_admin !== process.env.ADMIN_CODE) return err('Codice amministratore non valido.', 403);
-    if (!b.nome?.trim()) return err('Inserisci il nome della partita.');
-    const codice = 'PALIO-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-    const { data: p, error } = await db.from('partite')
-      .insert({ nome: b.nome.trim(), anno: Number(b.anno), descrizione: b.descrizione || null, codice, sindaco_id: uid })
-      .select().single();
-    if (error || !p) return err('Creazione non riuscita.', 500);
-    await db.from('membri').insert({ partita_id: p.id, utente_id: uid, ruolo: 'sindaco' });
-    return NextResponse.json({ id: p.id, codice });
+  if (!partita_id || !fantino_id || !messaggio || !access_token) {
+    return NextResponse.json({ error: 'Parametri mancanti' }, { status: 400 });
   }
 
-  if (b.azione === 'unisciti') {
-    const { data: p } = await db.from('partite').select('id').eq('codice', String(b.codice || '').trim().toUpperCase()).single();
-    if (!p) return err('Codice partita non trovato.', 404);
-    await db.from('membri').upsert({ partita_id: p.id, utente_id: uid }, { onConflict: 'partita_id,utente_id', ignoreDuplicates: true });
-    return NextResponse.json({ id: p.id });
+  const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
+  if (userError || !userData.user) {
+    return NextResponse.json({ error: 'Sessione scaduta: accedi di nuovo.' }, { status: 401 });
+  }
+  const userId = userData.user.id;
+
+  const { data: membro, error: membroError } = await supabase
+    .from('membri')
+    .select('contrada_id, ruolo')
+    .eq('partita_id', partita_id)
+    .eq('utente_id', userId)
+    .single();
+
+  if (membroError || !membro || !membro.contrada_id) {
+    return NextResponse.json({ error: 'Non fai parte di questa partita o non hai ancora una Contrada assegnata.' }, { status: 403 });
   }
 
-  const { data: me } = await db.from('membri').select('ruolo').eq('partita_id', b.partita_id).eq('utente_id', uid).single();
-  if (me?.ruolo !== 'sindaco') return err('Solo il Sindaco può farlo.', 403);
+  const { data: svolte } = await supabase
+    .from('attivita_svolte')
+    .select('id')
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
+    .eq('fantino_id', fantino_id)
+    .limit(1);
 
-  if (b.azione === 'membri') {
-    const { data } = await db.from('membri')
-      .select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)')
-      .eq('partita_id', b.partita_id);
-    return NextResponse.json({ membri: data ?? [] });
+  if (!svolte || svolte.length === 0) {
+    return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
   }
 
-  if (b.azione === 'assegna') {
-    await db.from('membri').update({ ruolo: b.ruolo || null, contrada_id: b.contrada_id || null })
-      .eq('partita_id', b.partita_id).eq('utente_id', b.utente_id);
-    await db.from('profiles').update({ contrada_id: b.contrada_id || null, ruolo: b.ruolo || 'capitano' }).eq('id', b.utente_id);
-    return NextResponse.json({ ok: true });
+  const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('chat_messaggi')
+    .select('id', { count: 'exact', head: true })
+    .eq('utente_id', userId)
+    .eq('autore', 'utente')
+    .gte('creato_il', daQuando);
+
+  if ((count ?? 0) >= MAX_MESSAGGI_FINESTRA) {
+    return NextResponse.json(
+      { error: `Troppi messaggi: massimo ${MAX_MESSAGGI_FINESTRA} ogni ${FINESTRA_MINUTI} minuti` },
+      { status: 429 }
+    );
   }
 
-  if (b.azione === 'elimina') {
-    await db.from('partite').delete().eq('id', b.partita_id);
-    return NextResponse.json({ ok: true });
+  const { data: fantino, error: fantinoError } = await supabase
+    .from('fantini')
+    .select('*')
+    .eq('id', fantino_id)
+    .single();
+
+  if (fantinoError || !fantino) {
+    return NextResponse.json({ error: 'Fantino non trovato' }, { status: 404 });
   }
 
-  if (b.azione === 'crediti') {
-    const importo = Number(b.importo);
-    if (!(importo > 0)) return err("L'importo deve essere maggiore di zero.");
+  const { data: relazione } = await supabase
+    .from('relazioni_contrada_fantino')
+    .select('livello')
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
+    .eq('fantino_id', fantino_id)
+    .single();
 
-    const { error } = await db.from('movimenti_crediti').insert({
-      partita_id: b.partita_id,
-      contrada_id: b.contrada_id,
-      importo,
-      motivo: `Aggiunta di ${importo} crediti`,
-      tipo: 'assegnazione',
-    });
+  const { data: storico } = await supabase
+    .from('chat_messaggi')
+    .select('autore, contenuto')
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
+    .eq('fantino_id', fantino_id)
+    .order('creato_il', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(40);
 
-    if (error) return err('Assegnazione non riuscita.', 500);
-    return NextResponse.json({ ok: true });
+  const cronologia = (storico ?? []).slice().reverse();
+
+  const livello = relazione?.livello ?? fantino.livello_base ?? 0;
+  const tonoRelazione =
+    livello < 20
+      ? "diffidente e formale: tratta l'interlocutore come uno sconosciuto, parla poco e con cautela"
+      : livello < 50
+      ? 'cauto ma disponibile: comincia ad aprirsi, senza però fidarsi del tutto'
+      : livello < 80
+      ? 'cordiale e collaborativo: parla apertamente, condivide opinioni sincere'
+      : "estremamente leale: tratta l'interlocutore come un amico di lunga data, difende gli interessi della contrada";
+
+  const systemPrompt = `Sei ${fantino.nome}${fantino.soprannome ? ` detto "${fantino.soprannome}"` : ''}, un fantino del Palio di Siena.
+Tratti di personalità: ${fantino.personalita}
+Il tuo livello di rapporto con questa contrada è ${livello}/100: comportati in modo ${tonoRelazione}.
+
+Regole di formato, obbligatorie:
+- Scrivi SOLO le tue battute di dialogo, in prima persona, come in una vera chat scritta.
+- NON descrivere mai azioni, gesti, espressioni del viso, l'ambiente o cosa stai facendo: niente testo tra asterischi, niente didascalie sceniche, niente narrazione in terza persona.
+- Sii diretto e breve, come un vero messaggio di chat (di norma 1-4 frasi): rispondi più a lungo solo se la domanda lo richiede davvero.
+
+Regole di carattere:
+- Resta sempre nel personaggio, rispondi in italiano, in modo colloquiale e coerente con il mondo del Palio (cavalli, contrattazioni, rivalità storiche tra contrade, gestione dei crediti).
+- Non menzionare mai di essere un'intelligenza artificiale e non uscire mai dal personaggio, qualunque cosa ti venga chiesto.
+- Se l'interlocutore ti insulta o ti manca di rispetto, NON scusarti in modo remissivo: reagisci secondo il tuo carattere, con freddezza, distacco, orgoglio ferito o irritazione.
+
+Alla fine della tua risposta, SEMPRE, su una riga a parte, aggiungi un tag nel formato [[DELTA:n]] dove n è un numero intero tra -5 e 5.
+Usa 0 per la stragrande maggioranza dei messaggi: saluti, domande normali, chiacchiere, richieste di informazioni, piccole osservazioni. Il rapporto con un fantino non cambia ogni volta che si parla.
+Usa un numero diverso da 0 SOLO per momenti davvero notevoli: un insulto chiaro o una mancanza di rispetto grave (negativo, -2 o più forte), una minaccia (negativo), un gesto generoso o una dimostrazione di fiducia importante (positivo, +2 o più forte). Non usare mai 1 o -1: se una cosa non è abbastanza significativa da valere almeno 2, allora vale 0.
+Questo tag non verrà mostrato all'utente.`;
+
+  const esito = await chiediIA(systemPrompt, [
+    ...cronologia.map((m) => ({
+      role: m.autore === 'utente' ? 'user' : 'assistant',
+      content: m.contenuto,
+    })),
+    { role: 'user', content: messaggio },
+  ]);
+
+  if (!esito.ok) {
+    console.error('Errore IA, stato:', esito.status);
+    if (esito.status === 429) {
+      return NextResponse.json(
+        { error: 'I fantini sono molto richiesti in questo momento: riprova tra qualche secondo.' },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ error: 'Il fantino non riesce a rispondere, riprova tra poco.' }, { status: 502 });
   }
 
-  return err('Azione sconosciuta.');
+  const grezzo: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
+  const trovato = grezzo.match(/\[\[\s*DELTA\s*:\s*([+-]?\d+)\s*\]\]/i);
+  const deltaGrezzo = trovato ? Math.max(-5, Math.min(5, parseInt(trovato[1], 10))) : 0;
+  const delta = Math.abs(deltaGrezzo) >= 2 ? deltaGrezzo : 0;
+  const testoRisposta = grezzo.replace(/\[\[\s*DELTA\s*:\s*[+-]?\d+\s*\]\]/gi, '').trim() || 'Non ho capito, ripeti pure.';
+
+  const nuovoLivello = Math.max(0, Math.min(100, livello + delta));
+
+  await supabase.from('chat_messaggi').insert([
+    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
+    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'fantino', utente_id: userId, contenuto: testoRisposta },
+  ]);
+
+  if (delta !== 0) {
+    await supabase.from('relazioni_contrada_fantino').upsert(
+      { partita_id, contrada_id: membro.contrada_id, fantino_id, livello: nuovoLivello },
+      { onConflict: 'partita_id,contrada_id,fantino_id' }
+    );
+  }
+
+  return NextResponse.json({ risposta: testoRisposta });
 }
