@@ -54,16 +54,21 @@ export default function PaginaFantini() {
 
     if (m.contrada_id) {
       const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: movs }] = await Promise.all([
-        supabase.from('fantini').select('*').order('nome'),
+        supabase.from('fantini').select('*'),
         supabase.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('tipi_attivita').select('*').order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('movimenti_crediti').select('importo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
       ]);
-      setFantini((f as Fantino[]) ?? []);
       const mappa: Record<string, number> = {};
       (rel ?? []).forEach((r) => { mappa[r.fantino_id] = r.livello; });
       setLivelli(mappa);
+      setFantini(((f as Fantino[]) ?? []).slice().sort((a, b) => {
+        const rapportoA = mappa[a.id] ?? a.livello_base;
+        const rapportoB = mappa[b.id] ?? b.livello_base;
+        if (rapportoB !== rapportoA) return rapportoB - rapportoA;
+        return a.nome.localeCompare(b.nome);
+      }));
       setTipiAttivita(((tipi ?? []) as unknown[]).map((t) => {
         const x = t as Record<string, unknown>;
         return { id: x.id as string, nome: x.nome as string, costo_minimo: Number(x.costo_minimo), costo_massimo: Number(x.costo_massimo), variazione_massima: Number(x.variazione_massima) };
