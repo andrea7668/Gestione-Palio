@@ -74,12 +74,16 @@ export default function Partita() {
     else alert(r.error);
   }
 
+  const indiceFase = fase ? FASI.indexOf(fase) : -1;
+  const eUltimaFase = indiceFase === FASI.length - 1;
+
   async function avanzaFase() {
-    if (!fase) return;
-    const i = FASI.indexOf(fase);
-    if (i < 0 || i >= FASI.length - 1) return;
-    const prossima = FASI[i + 1];
-    if (window.confirm(`Passare a ${INFO_FASI[prossima].nome}? Tutti i giocatori vedranno il cambio subito.`) === false) return;
+    if (!fase || indiceFase < 0) return;
+    const prossima = FASI[(indiceFase + 1) % FASI.length];
+    const domanda = eUltimaFase
+      ? "Tornare all'Inverno? La partita riparte dall'inizio e tutti i giocatori vedranno il cambio subito."
+      : `Passare a ${INFO_FASI[prossima].nome}? Tutti i giocatori vedranno il cambio subito.`;
+    if (window.confirm(domanda) === false) return;
     const r = await chiama({ azione: 'cambia_fase', partita_id: id });
     if (!r.ok) { alert(r.error); return; }
     ricarica();
@@ -98,7 +102,6 @@ export default function Partita() {
   }
 
   const nomeContrada = (contrada_id: string | null) => contrade.find((c) => c.id === contrada_id)?.nome;
-  const indiceFase = fase ? FASI.indexOf(fase) : -1;
 
   return (
     <main className="pagina">
@@ -113,31 +116,6 @@ export default function Partita() {
           {io?.ruolo === 'sindaco' && <button className="btn btn-vuoto" onClick={elimina}>Elimina partita</button>}
         </div>
       </header>
-
-      {io?.ruolo === 'sindaco' && fase && (
-        <section className="carta">
-          <h2>Fasi di gioco</h2>
-          <div className="fasi-lista">
-            {FASI.map((f, i) => {
-              const stato = i < indiceFase ? 'fatta' : i === indiceFase ? 'attiva' : 'futura';
-              return (
-                <div key={f} className={`fase-riga ${stato}`}>
-                  <span className="fase-icona">{stato === 'fatta' ? '✓' : stato === 'attiva' ? '●' : '○'}</span>
-                  <div>
-                    <p className="fase-nome">{INFO_FASI[f].nome}</p>
-                    <p className="fase-sotto">{INFO_FASI[f].sotto}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {indiceFase < FASI.length - 1 ? (
-            <button className="btn" onClick={avanzaFase}>Passa a {INFO_FASI[FASI[indiceFase + 1]].nome} →</button>
-          ) : (
-            <p className="aiuto centrato">Ultima fase raggiunta.</p>
-          )}
-        </section>
-      )}
 
       {io && io.ruolo !== 'sindaco' && fase && (
         <section className="carta">
@@ -173,6 +151,29 @@ export default function Partita() {
           {membri.filter((m) => m.ruolo !== 'sindaco').map((m) => (
             <RigaGiocatore key={m.utente_id} m={m} contrade={contrade} salva={assegna} saldoContrada={saldoContrada} assegnaCrediti={assegnaCrediti} />
           ))}
+        </section>
+      )}
+
+      {io?.ruolo === 'sindaco' && fase && (
+        <section className="carta">
+          <h2>Fasi di gioco</h2>
+          <div className="fasi-lista">
+            {FASI.map((f, i) => {
+              const stato = i < indiceFase ? 'fatta' : i === indiceFase ? 'attiva' : 'futura';
+              return (
+                <div key={f} className={`fase-riga ${stato}`}>
+                  <span className="fase-icona">{stato === 'fatta' ? '✓' : stato === 'attiva' ? '●' : '○'}</span>
+                  <div>
+                    <p className="fase-nome">{INFO_FASI[f].nome}</p>
+                    <p className="fase-sotto">{INFO_FASI[f].sotto}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <button className="btn" onClick={avanzaFase}>
+            {eUltimaFase ? `Torna a ${INFO_FASI[FASI[0]].nome} ↺` : `Passa a ${INFO_FASI[FASI[indiceFase + 1]].nome} →`}
+          </button>
         </section>
       )}
     </main>

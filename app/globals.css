@@ -79,7 +79,7 @@ select.campo:hover{border-color:var(--vino)}
   .riga-crediti{margin-left:0}
 }
 .layout-partita{display:flex;min-height:100dvh;align-items:flex-start;position:relative}
-.menu-laterale{width:250px;flex-shrink:0;background:var(--vino);color:#f3e9e3;display:flex;flex-direction:column;padding:22px 14px;min-height:100dvh}
+.menu-laterale{width:250px;flex-shrink:0;background:var(--vino);color:#f3e9e3;display:flex;flex-direction:column;padding:22px 14px;position:sticky;top:var(--altezza-barra);height:calc(100dvh - var(--altezza-barra));overflow-y:auto}
 .menu-intesta{display:flex;gap:12px;align-items:center;padding:6px 8px 18px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:14px}
 .menu-avatar{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);display:grid;place-items:center;font-size:22px;flex-shrink:0}
 .menu-info{min-width:0}
@@ -182,3 +182,7 @@ select.campo:hover{border-color:var(--vino)}
 .fase-sotto{margin:0;font-size:13px;color:var(--tenue)}
 .banner-fase-riga{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tag-nuova{background:var(--oro);color:#3a2a20;border-radius:99px;padding:2px 12px;font-size:12px;font-weight:700}
+
+.scheda-fantino-id{display:flex;align-items:center;gap:12px;min-width:0}
+.foto-fantino{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--oro)}
+.foto-fantino-vuota{display:grid;place-items:center;background:var(--vino);color:#fff;font:700 20px 'Cormorant Garamond',serif}
