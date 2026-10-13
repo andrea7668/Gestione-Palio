@@ -14,6 +14,10 @@ async function notifica(partitaId: string, destinatari: string[], tipo: string, 
   );
 }
 
+async function evento(partitaId: string, contradaId: string | null, tipo: string, titolo: string, testo?: string) {
+  await db.from('eventi').insert({ partita_id: partitaId, contrada_id: contradaId, tipo, titolo, testo: testo ?? null });
+}
+
 async function nomeUtente(id: string) {
   const { data } = await db.from('profiles').select('nome, cognome').eq('id', id).single();
   const nome = `${data?.nome ?? ''} ${data?.cognome ?? ''}`.trim();
@@ -58,6 +62,25 @@ export async function POST(req: NextRequest) {
   const { data: me } = await db.from('membri').select('ruolo, contrada_id').eq('partita_id', b.partita_id).eq('utente_id', uid).single();
   if (!me) return err('Non fai parte di questa partita.', 403);
 
+  if (b.azione === 'chat_contrada') {
+    if (!me.contrada_id) return err('Non hai ancora una Contrada assegnata.', 403);
+    const testo = String(b.testo ?? '').trim().slice(0, 500);
+    if (!testo) return err('Scrivi un messaggio.');
+
+    const { count } = await db.from('chat_contrada')
+      .select('id', { count: 'exact', head: true })
+      .eq('utente_id', uid)
+      .gte('creato_il', new Date(Date.now() - 60000).toISOString());
+    if ((count ?? 0) >= 20) return err('Stai scrivendo troppo in fretta: aspetta un momento.', 429);
+
+    const nome = await nomeUtente(uid);
+    const { error } = await db.from('chat_contrada').insert({
+      partita_id: b.partita_id, contrada_id: me.contrada_id, utente_id: uid, autore_nome: nome, contenuto: testo,
+    });
+    if (error) return err('Messaggio non inviato.', 500);
+    return NextResponse.json({ ok: true });
+  }
+
   if (b.azione === 'fai_attivita') {
     if (!me.contrada_id) return err('Non hai ancora una Contrada assegnata.', 403);
     const { data: tipo } = await db.from('tipi_attivita').select('*').eq('id', b.tipo_attivita_id).single();
@@ -97,13 +120,15 @@ export async function POST(req: NextRequest) {
     const { data: compagni } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).neq('utente_id', uid);
     const nome = await nomeUtente(uid);
     const nomeFantino = fantino?.soprannome ?? fantino?.nome ?? 'un fantino';
+    const esito = successo ? `rapporto +${delta}` : 'nessun cambiamento';
     await notifica(
       b.partita_id,
       (compagni ?? []).map((c) => c.utente_id),
       'iniziativa',
       `${nome} ha fatto un'iniziativa`,
-      `${tipo.nome} con ${nomeFantino}, ${costo} crediti: ${successo ? `rapporto +${delta}` : 'nessun cambiamento'}.`
+      `${tipo.nome} con ${nomeFantino}, ${costo} crediti: ${esito}.`
     );
+    await evento(b.partita_id, me.contrada_id, 'iniziativa', `${nome}: ${tipo.nome} con ${nomeFantino}`, `${costo} crediti · ${esito}`);
 
     return NextResponse.json({ ok: true, successo, delta });
   }
@@ -121,6 +146,7 @@ export async function POST(req: NextRequest) {
     const nome = await nomeUtente(uid);
     const nomeFantino = fantino?.soprannome ?? fantino?.nome ?? 'un fantino';
     await notifica(b.partita_id, (compagni ?? []).map((c) => c.utente_id), 'continuita', `${nome} ha fatto un colloquio di continuità`, `Con ${nomeFantino}.`);
+    await evento(b.partita_id, me.contrada_id, 'continuita', `${nome}: colloquio di continuità`, `Con ${nomeFantino}.`);
 
     return NextResponse.json({ ok: true });
   }
@@ -150,6 +176,10 @@ export async function POST(req: NextRequest) {
         nomeContrada = c?.nome ?? '';
       }
       await notifica(b.partita_id, [b.utente_id], 'ruolo', 'Il Sindaco ti ha assegnato un ruolo', `${etichettaRuolo(nuovoRuolo)}${nomeContrada ? ` · ${nomeContrada}` : ''}.`);
+      if (nuovaContrada) {
+        const nomeGiocatore = await nomeUtente(b.utente_id);
+        await evento(b.partita_id, nuovaContrada, 'ruolo', `${nomeGiocatore}: ${etichettaRuolo(nuovoRuolo)}`, nomeContrada ? `Contrada ${nomeContrada}.` : undefined);
+      }
     }
     return NextResponse.json({ ok: true });
   }
@@ -175,6 +205,7 @@ export async function POST(req: NextRequest) {
 
     const { data: giocatori } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', b.contrada_id);
     await notifica(b.partita_id, (giocatori ?? []).map((g) => g.utente_id), 'crediti', 'La tua Contrada ha ricevuto crediti', `Il Sindaco ha assegnato ${importo} crediti.`);
+    await evento(b.partita_id, b.contrada_id, 'crediti', `${importo} crediti assegnati`, 'Assegnazione del Sindaco.');
 
     return NextResponse.json({ ok: true });
   }
@@ -190,6 +221,7 @@ export async function POST(req: NextRequest) {
     const { data: altri } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).neq('utente_id', uid);
     const info = INFO_FASI[comeFase(prossima)];
     await notifica(b.partita_id, (altri ?? []).map((m) => m.utente_id), 'fase', `Nuova fase: ${info.nome}`, info.disponibile);
+    await evento(b.partita_id, null, 'fase', `Nuova fase: ${info.nome}`, info.disponibile);
 
     return NextResponse.json({ ok: true, fase: prossima });
   }

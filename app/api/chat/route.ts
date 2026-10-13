@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const MAX_MESSAGGI_FINESTRA = 20;
+const MAX_MESSAGGI_FINESTRA = 60;
 const FINESTRA_MINUTI = 10;
 const MODELLO_PRINCIPALE = 'google/gemma-4-26b-a4b-it';
 
