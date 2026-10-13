@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { FASI } from '../../../lib/fasi';
+import { FASI, INFO_FASI, comeFase } from '../../../lib/fasi';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const err = (m: string, s = 400) => NextResponse.json({ error: m }, { status: s });
 const SOGLIA_CONTINUITA = 60;
+
+async function notifica(partitaId: string, destinatari: string[], tipo: string, titolo: string, testo?: string) {
+  const unici = Array.from(new Set(destinatari.filter(Boolean)));
+  if (unici.length === 0) return;
+  await db.from('notifiche').insert(
+    unici.map((utente_id) => ({ partita_id: partitaId, utente_id, tipo, titolo, testo: testo ?? null }))
+  );
+}
+
+async function nomeUtente(id: string) {
+  const { data } = await db.from('profiles').select('nome, cognome').eq('id', id).single();
+  const nome = `${data?.nome ?? ''} ${data?.cognome ?? ''}`.trim();
+  return nome || 'Un giocatore';
+}
+
+const etichettaRuolo = (r: string | null) =>
+  r === 'mangino' ? 'Mangino' : r === 'capitano' ? 'Capitano' : r === 'sindaco' ? 'Sindaco' : 'In attesa';
 
 export async function POST(req: NextRequest) {
   const b = await req.json();
@@ -27,7 +44,14 @@ export async function POST(req: NextRequest) {
   if (b.azione === 'unisciti') {
     const { data: p } = await db.from('partite').select('id').eq('codice', String(b.codice || '').trim().toUpperCase()).single();
     if (!p) return err('Codice partita non trovato.', 404);
-    await db.from('membri').upsert({ partita_id: p.id, utente_id: uid }, { onConflict: 'partita_id,utente_id', ignoreDuplicates: true });
+
+    const { data: gia } = await db.from('membri').select('utente_id').eq('partita_id', p.id).eq('utente_id', uid).maybeSingle();
+    if (!gia) {
+      await db.from('membri').insert({ partita_id: p.id, utente_id: uid });
+      const { data: sindaci } = await db.from('membri').select('utente_id').eq('partita_id', p.id).eq('ruolo', 'sindaco');
+      const nome = await nomeUtente(uid);
+      await notifica(p.id, (sindaci ?? []).map((s) => s.utente_id), 'nuovo_giocatore', `${nome} è entrato nella partita`, 'In attesa di ruolo e Contrada.');
+    }
     return NextResponse.json({ id: p.id });
   }
 
@@ -48,7 +72,7 @@ export async function POST(req: NextRequest) {
     const saldo = (movs ?? []).reduce((t, m) => t + Number(m.importo), 0);
     if (saldo < costo) return err('Crediti insufficienti per questa attività.');
 
-    const { data: fantino } = await db.from('fantini').select('livello_base').eq('id', b.fantino_id).single();
+    const { data: fantino } = await db.from('fantini').select('livello_base, nome, soprannome').eq('id', b.fantino_id).single();
     const { data: rel } = await db.from('relazioni_contrada_fantino').select('livello').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).eq('fantino_id', b.fantino_id).single();
     const livelloAttuale = rel?.livello ?? fantino?.livello_base ?? 0;
 
@@ -61,40 +85,43 @@ export async function POST(req: NextRequest) {
     const delta = successo ? Math.max(1, Math.round(tipo.variazione_massima * proporzione)) : 0;
     const nuovoLivello = Math.max(0, Math.min(100, livelloAttuale + delta));
 
-    const messaggioRingraziamento = 'Grazie per l’iniziativa! Ho apprezzato il pensiero: spero che sia l’inizio di un bel rapporto con la tua Contrada.';
-    const risultati = await Promise.all([
+    await Promise.all([
       db.from('movimenti_crediti').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, importo: -costo, motivo: tipo.nome, tipo: 'spesa_attivita' }),
       db.from('relazioni_contrada_fantino').upsert(
         { partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, livello: nuovoLivello },
         { onConflict: 'partita_id,contrada_id,fantino_id' }
       ),
       db.from('attivita_svolte').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, tipo_attivita_id: b.tipo_attivita_id }),
-      db.from('chat_messaggi').insert({
-        partita_id: b.partita_id,
-        contrada_id: me.contrada_id,
-        fantino_id: b.fantino_id,
-        autore: 'fantino',
-        utente_id: uid,
-        contenuto: messaggioRingraziamento,
-      }),
     ]);
 
-    if (risultati.some(({ error }) => error)) {
-      console.error('Errore nel salvataggio dell’iniziativa o del ringraziamento:', risultati.map(({ error }) => error).filter(Boolean));
-      return err('Non è stato possibile completare l’iniziativa. Riprova.', 500);
-    }
+    const { data: compagni } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).neq('utente_id', uid);
+    const nome = await nomeUtente(uid);
+    const nomeFantino = fantino?.soprannome ?? fantino?.nome ?? 'un fantino';
+    await notifica(
+      b.partita_id,
+      (compagni ?? []).map((c) => c.utente_id),
+      'iniziativa',
+      `${nome} ha fatto un'iniziativa`,
+      `${tipo.nome} con ${nomeFantino}, ${costo} crediti: ${successo ? `rapporto +${delta}` : 'nessun cambiamento'}.`
+    );
 
     return NextResponse.json({ ok: true, successo, delta });
   }
 
   if (b.azione === 'colloquio_continuita') {
     if (!me.contrada_id) return err('Non hai ancora una Contrada assegnata.', 403);
-    const { data: fantino } = await db.from('fantini').select('livello_base').eq('id', b.fantino_id).single();
+    const { data: fantino } = await db.from('fantini').select('livello_base, nome, soprannome').eq('id', b.fantino_id).single();
     const { data: rel } = await db.from('relazioni_contrada_fantino').select('livello').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).eq('fantino_id', b.fantino_id).single();
     const livelloAttuale = rel?.livello ?? fantino?.livello_base ?? 0;
     if (livelloAttuale < SOGLIA_CONTINUITA) return err('Il rapporto non ha ancora raggiunto la soglia per la continuità.');
 
     await db.from('colloqui_continuita').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id });
+
+    const { data: compagni } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).neq('utente_id', uid);
+    const nome = await nomeUtente(uid);
+    const nomeFantino = fantino?.soprannome ?? fantino?.nome ?? 'un fantino';
+    await notifica(b.partita_id, (compagni ?? []).map((c) => c.utente_id), 'continuita', `${nome} ha fatto un colloquio di continuità`, `Con ${nomeFantino}.`);
+
     return NextResponse.json({ ok: true });
   }
 
@@ -108,9 +135,22 @@ export async function POST(req: NextRequest) {
   }
 
   if (b.azione === 'assegna') {
-    await db.from('membri').update({ ruolo: b.ruolo || null, contrada_id: b.contrada_id || null })
+    const nuovoRuolo: string | null = b.ruolo || null;
+    const nuovaContrada: string | null = b.contrada_id || null;
+    const { data: prima } = await db.from('membri').select('ruolo, contrada_id').eq('partita_id', b.partita_id).eq('utente_id', b.utente_id).maybeSingle();
+
+    await db.from('membri').update({ ruolo: nuovoRuolo, contrada_id: nuovaContrada })
       .eq('partita_id', b.partita_id).eq('utente_id', b.utente_id);
-    await db.from('profiles').update({ contrada_id: b.contrada_id || null, ruolo: b.ruolo || 'capitano' }).eq('id', b.utente_id);
+    await db.from('profiles').update({ contrada_id: nuovaContrada, ruolo: nuovoRuolo || 'capitano' }).eq('id', b.utente_id);
+
+    if ((prima?.ruolo ?? null) !== nuovoRuolo || (prima?.contrada_id ?? null) !== nuovaContrada) {
+      let nomeContrada = '';
+      if (nuovaContrada) {
+        const { data: c } = await db.from('contrade').select('nome').eq('id', nuovaContrada).single();
+        nomeContrada = c?.nome ?? '';
+      }
+      await notifica(b.partita_id, [b.utente_id], 'ruolo', 'Il Sindaco ti ha assegnato un ruolo', `${etichettaRuolo(nuovoRuolo)}${nomeContrada ? ` · ${nomeContrada}` : ''}.`);
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -132,17 +172,25 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) return err('Assegnazione non riuscita.', 500);
+
+    const { data: giocatori } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', b.contrada_id);
+    await notifica(b.partita_id, (giocatori ?? []).map((g) => g.utente_id), 'crediti', 'La tua Contrada ha ricevuto crediti', `Il Sindaco ha assegnato ${importo} crediti.`);
+
     return NextResponse.json({ ok: true });
   }
 
   if (b.azione === 'cambia_fase') {
     const { data: p } = await db.from('partite').select('fase').eq('id', b.partita_id).single();
     const elenco = FASI as readonly string[];
-    const i = elenco.indexOf(p?.fase ?? 'inverno');
-    if (i === -1) return err('La fase corrente non è valida.');
+    const i = Math.max(0, elenco.indexOf(p?.fase ?? 'inverno'));
     const prossima = elenco[(i + 1) % elenco.length];
     const { error } = await db.from('partite').update({ fase: prossima }).eq('id', b.partita_id);
-    if (error) return err('Cambio fase non riuscita.', 500);
+    if (error) return err('Cambio fase non riuscito.', 500);
+
+    const { data: altri } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).neq('utente_id', uid);
+    const info = INFO_FASI[comeFase(prossima)];
+    await notifica(b.partita_id, (altri ?? []).map((m) => m.utente_id), 'fase', `Nuova fase: ${info.nome}`, info.disponibile);
+
     return NextResponse.json({ ok: true, fase: prossima });
   }
 
