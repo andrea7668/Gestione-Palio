@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAggiorna } from '../lib/useAggiorna';
 
 type Notifica = {
   id: number;
@@ -78,6 +79,7 @@ export default function BarraSuperiore({
       .channel(`notifiche-${uid}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifiche', filter: `utente_id=eq.${uid}` }, () => caricaNotifiche(uid))
       .subscribe();
+      useAggiorna(() => { if (uid) caricaNotifiche(uid); }, 20000);
     return () => { supabase.removeChannel(canale); };
   }, [uid, caricaNotifiche]);
 

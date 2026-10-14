@@ -285,3 +285,4 @@ select.campo:hover{border-color:var(--vino)}
 .tratta-legenda ul{margin:8px 0 0;padding-left:18px}
 .tratta-legenda li{margin-bottom:4px}
 .badge-accordo{background:var(--vino);color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.menu-fase{font-size:12px;opacity:.85;margin:2px 0 0;font-weight:600}

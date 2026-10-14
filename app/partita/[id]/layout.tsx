@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import BarraSuperiore from '../../../components/BarraSuperiore';
-import { comeFase, type Fase } from '../../../lib/fasi';
+import { comeFase, FASI_CON_TRATTATIVE, INFO_FASI, type Fase } from '../../../lib/fasi';
 import { FaseContext } from '../../../lib/contesto-fase';
+import { useAggiorna } from '../../../lib/useAggiorna';
 
 type Contesto = { nomePartita: string; fase: Fase; ruolo: string | null; nomeContrada: string | null } | null;
 type RigaMembro = { ruolo: string | null; contrada_id: string | null; contrade: { nome: string } | null };
@@ -55,7 +56,11 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
     return () => { supabase.removeChannel(canale); };
   }, [id, carica]);
 
+  // Se il tempo reale non funziona (succede su alcune reti mobili) la fase si aggiorna comunque
+  useAggiorna(carica, 10000);
+
   const etichettaRuolo = ctx?.ruolo === 'mangino' ? 'Mangino' : ctx?.ruolo === 'sindaco' ? 'Sindaco' : ctx?.ruolo === 'capitano' ? 'Capitano' : 'In attesa';
+  const faseTratta = !!ctx && FASI_CON_TRATTATIVE.includes(ctx.fase);
 
   return (
     <>
@@ -72,19 +77,21 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
               <p className="menu-sotto">
                 {etichettaRuolo}{ctx?.ruolo !== 'sindaco' && ctx?.nomeContrada ? ` · ${ctx.nomeContrada}` : ''}
               </p>
+              {ctx && <p className="menu-fase">Fase: {INFO_FASI[ctx.fase].nome}</p>}
             </div>
           </div>
 
           <nav className="menu-voci">
             {voci.map((v) => {
               const href = `/partita/${id}${v.href ? '/' + v.href : ''}`;
+              const abilitata = v.attiva || (v.href === 'trattative' && faseTratta);
               const attiva = v.href === '' ? pathname === `/partita/${id}` : !!pathname?.startsWith(href);
-              return v.attiva ? (
+              return abilitata ? (
                 <Link key={v.nome} href={href} className={`menu-voce${attiva ? ' attiva' : ''}`} onClick={() => setAperto(false)}>
                   <span className="menu-icona">{v.icona}</span>{v.nome}
                 </Link>
               ) : (
-                <span key={v.nome} className="menu-voce disabilitata" title="In arrivo">
+                <span key={v.nome} className="menu-voce disabilitata" title={v.href === 'trattative' ? 'Si apre durante la Tratta' : 'In arrivo'}>
                   <span className="menu-icona">{v.icona}</span>{v.nome}
                 </span>
               );

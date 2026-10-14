@@ -8,6 +8,7 @@ import { FASI, INFO_FASI } from '../../../lib/fasi';
 import { useFase } from '../../../lib/contesto-fase';
 import ChatContrada from '../../../components/ChatContrada';
 import FotoContrada from '../../../components/FotoContrada';
+import { useAggiorna } from '../../../lib/useAggiorna';
 
 type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
 type Contrada = { id: string; nome: string; rivale?: string | null };
@@ -59,6 +60,7 @@ export default function Partita() {
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
+  useAggiorna(carica, 8000);
 
   useEffect(() => {
     const canale = supabase

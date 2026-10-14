@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../../lib/supabase';
-import { FASI_CHAT_LIBERA } from '../../../../lib/fasi';
+import { FASI_CHAT_LIBERA, INFO_FASI } from '../../../../lib/fasi';
 import { TIPI_ACCORDO, etichettaRapporto } from '../../../../lib/accordi';
 import { useFase } from '../../../../lib/contesto-fase';
 import FantinoChat from '../../../../components/FantinoChat';
@@ -168,6 +168,12 @@ export default function PaginaFantini() {
             ) : (
               <div className="chat-overlay-lista">
                 <h3>Con chi vuoi parlare?</h3>
+                {fase && (
+                  <p className="aiuto">
+                    Fase: {INFO_FASI[fase].nome}.{' '}
+                    {chatLibera ? 'Puoi parlare con tutti i fantini.' : "Puoi parlare solo con i fantini con cui hai fatto un'iniziativa."}
+                  </p>
+                )}
                 {conChat.length === 0 && (
                   <p className="aiuto">Non puoi ancora scrivere a nessuno: fai prima un&apos;iniziativa con un fantino.</p>
                 )}
