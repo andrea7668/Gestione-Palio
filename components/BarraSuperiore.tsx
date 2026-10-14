@@ -73,13 +73,14 @@ export default function BarraSuperiore({
     })();
   }, [caricaNotifiche]);
 
+  useAggiorna(() => { if (uid) caricaNotifiche(uid); }, 20000);
+
   useEffect(() => {
     if (!uid) return;
     const canale = supabase
       .channel(`notifiche-${uid}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifiche', filter: `utente_id=eq.${uid}` }, () => caricaNotifiche(uid))
       .subscribe();
-      useAggiorna(() => { if (uid) caricaNotifiche(uid); }, 20000);
     return () => { supabase.removeChannel(canale); };
   }, [uid, caricaNotifiche]);
 
