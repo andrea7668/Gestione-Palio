@@ -15,7 +15,7 @@ type Movimento = { id: number; contrada_id: string; importo: number; motivo: str
 type Evento = { id: number; tipo: string; titolo: string; testo: string | null; creato_il: string };
 
 const ETICHETTE_EVENTI: Record<string, string> = {
-  fase: 'Fase', ruolo: 'Ruoli', crediti: 'Crediti', iniziativa: 'Iniziativa', continuita: 'Continuità',
+    fase: 'Fase', ruolo: 'Ruoli', crediti: 'Crediti', iniziativa: 'Iniziativa', continuita: 'Continuità', promessa: 'Promessa', accordo: 'Accordo',
 };
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''));

@@ -262,3 +262,26 @@ select.campo:hover{border-color:var(--vino)}
 @media(max-width:900px){
   .dash-tre,.dash-due{grid-template-columns:1fr}
 }
+
+.chat-wrap{display:flex;flex-direction:column;gap:14px}
+.chat.compatta{height:min(440px,calc(100dvh - 280px))}
+.avatar-foto{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--oro);flex-shrink:0}
+.testa-info{min-width:0;flex:1}
+.testa-sotto{margin:0;font-size:13px;color:var(--tenue)}
+.testa-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.badge-chat{background:#efe9df;border-radius:99px;padding:3px 12px;font-size:12px;color:var(--testo)}
+.msg-ora{display:block;font-size:11px;opacity:.7;margin-top:4px;text-align:right}
+
+.tratta-pannello{display:flex;flex-direction:column;gap:12px}
+.tratta-info{border:1px solid #d9a9b0;background:#fbf0f1;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+.tratta-aggiorna{align-self:flex-start;padding:8px 18px}
+.accordo-card{border:1px solid #9cc7a8;background:#eaf4ec;border-radius:10px;padding:12px 14px}
+.accordo-testa{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.accordo-titolo{font-weight:700;color:#1f5a33}
+.accordo-tag{background:#d3ead9;color:#1f5a33;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.accordo-testo{margin:6px 0 0;font-size:14px}
+.tratta-legenda{font-size:13px;color:var(--tenue);line-height:1.5}
+.tratta-legenda p{margin:0}
+.tratta-legenda ul{margin:8px 0 0;padding-left:18px}
+.tratta-legenda li{margin-bottom:4px}
+.badge-accordo{background:var(--vino);color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}

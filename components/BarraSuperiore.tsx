@@ -30,6 +30,7 @@ function quandoFa(iso: string) {
 function destinazione(n: Notifica) {
   if (!n.partita_id) return null;
   if (n.tipo === 'iniziativa' || n.tipo === 'continuita') return `/partita/${n.partita_id}/fantini`;
+  if (n.tipo === 'promessa' || n.tipo === 'accordo') return `/partita/${n.partita_id}/trattative`;
   return `/partita/${n.partita_id}`;
 }
 

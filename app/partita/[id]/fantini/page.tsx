@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../../lib/supabase';
+import { FASI_CHAT_LIBERA } from '../../../../lib/fasi';
+import { TIPI_ACCORDO, etichettaRapporto } from '../../../../lib/accordi';
+import { useFase } from '../../../../lib/contesto-fase';
 import FantinoChat from '../../../../components/FantinoChat';
 
 const SOGLIA_CONTINUITA = 60;
@@ -13,19 +16,20 @@ type Fantino = {
   mossa: number; sanmartino_curva1: number; sanmartino_curva2: number; sanmartino_curva3: number;
   casato_curva1: number; casato_curva2: number; casato_curva3: number;
   nerbate_disponibili: number; parate_disponibili: number; livello_base: number;
+  foto: string | null;
 };
 type TipoAttivita = { id: string; nome: string; costo_minimo: number; costo_massimo: number; variazione_massima: number };
 
-function etichettaRapporto(l: number) {
-  if (l < 20) return 'Diffidente';
-  if (l < 50) return 'Cauto';
-  if (l < 80) return 'Cordiale';
-  return 'Fedele';
+function accordoPiuForte(tipi: string[] | undefined): string | null {
+  if (!tipi || tipi.length === 0) return null;
+  const migliore = [...TIPI_ACCORDO].reverse().find((t) => tipi.includes(t.chiave));
+  return migliore ? migliore.nome : null;
 }
 
 export default function PaginaFantini() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { fase } = useFase();
   const [ruolo, setRuolo] = useState<string | null>(null);
   const [contradaId, setContradaId] = useState<string | null>(null);
   const [nomeContrada, setNomeContrada] = useState('');
@@ -33,6 +37,7 @@ export default function PaginaFantini() {
   const [fantini, setFantini] = useState<Fantino[]>([]);
   const [livelli, setLivelli] = useState<Record<string, number>>({});
   const [sbloccati, setSbloccati] = useState<Set<string>>(new Set());
+  const [accordiPer, setAccordiPer] = useState<Record<string, string[]>>({});
   const [tipiAttivita, setTipiAttivita] = useState<TipoAttivita[]>([]);
   const [caricato, setCaricato] = useState(false);
   const [chatAperta, setChatAperta] = useState(false);
@@ -53,27 +58,26 @@ export default function PaginaFantini() {
     setNomeContrada((m.contrade as unknown as { nome: string } | null)?.nome ?? '');
 
     if (m.contrada_id) {
-      const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: movs }] = await Promise.all([
-        supabase.from('fantini').select('*'),
+      const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: movs }, { data: acc }] = await Promise.all([
+        supabase.from('fantini').select('*').order('nome'),
         supabase.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('tipi_attivita').select('*').order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('movimenti_crediti').select('importo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
+        supabase.from('accordi_fantini').select('fantino_id, tipo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
       ]);
+      setFantini((f as Fantino[]) ?? []);
       const mappa: Record<string, number> = {};
       (rel ?? []).forEach((r) => { mappa[r.fantino_id] = r.livello; });
       setLivelli(mappa);
-      setFantini(((f as Fantino[]) ?? []).slice().sort((a, b) => {
-        const rapportoA = mappa[a.id] ?? a.livello_base;
-        const rapportoB = mappa[b.id] ?? b.livello_base;
-        if (rapportoB !== rapportoA) return rapportoB - rapportoA;
-        return a.nome.localeCompare(b.nome);
-      }));
       setTipiAttivita(((tipi ?? []) as unknown[]).map((t) => {
         const x = t as Record<string, unknown>;
         return { id: x.id as string, nome: x.nome as string, costo_minimo: Number(x.costo_minimo), costo_massimo: Number(x.costo_massimo), variazione_massima: Number(x.variazione_massima) };
       }));
       setSbloccati(new Set((svolte ?? []).map((x) => x.fantino_id)));
+      const perFantino: Record<string, string[]> = {};
+      (acc ?? []).forEach((a) => { (perFantino[a.fantino_id] ??= []).push(a.tipo); });
+      setAccordiPer(perFantino);
       setSaldo((movs ?? []).reduce((t, x) => t + Number(x.importo), 0));
     } else if (m.ruolo === 'sindaco') {
       const { data: f } = await supabase.from('fantini').select('*').order('nome');
@@ -88,11 +92,6 @@ export default function PaginaFantini() {
     const r = await chiama({ azione: 'fai_attivita', partita_id: id, fantino_id: fantinoId, tipo_attivita_id: tipoId, costo });
     if (!r.ok) { alert(r.error); return; }
     await carica();
-    const fantino = fantini.find((f) => f.id === fantinoId);
-    if (fantino) {
-      setFantinoChat(fantino);
-      setChatAperta(true);
-    }
     return { successo: r.successo as boolean, delta: r.delta as number };
   }
 
@@ -106,6 +105,7 @@ export default function PaginaFantini() {
   function chiudiChat() {
     setChatAperta(false);
     setFantinoChat(null);
+    carica();
   }
 
   if (!caricato) return null;
@@ -113,7 +113,8 @@ export default function PaginaFantini() {
   const eSindaco = ruolo === 'sindaco';
   if (!contradaId && !eSindaco) return <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>;
   const soloLettura = !contradaId;
-  const conChat = fantini.filter((f) => sbloccati.has(f.id));
+  const chatLibera = !!fase && FASI_CHAT_LIBERA.includes(fase);
+  const conChat = chatLibera ? fantini : fantini.filter((f) => sbloccati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -135,6 +136,7 @@ export default function PaginaFantini() {
               perc={perc}
               nomeContrada={nomeContrada}
               soloLettura={soloLettura}
+              accordo={accordoPiuForte(accordiPer[f.id])}
               tipiAttivita={tipiAttivita}
               onFaiAttivita={(tipoId, costo) => faiAttivita(f.id, tipoId, costo)}
               onContinuita={() => faiContinuita(f.id)}
@@ -153,12 +155,14 @@ export default function PaginaFantini() {
             <button className="chat-overlay-chiudi" onClick={chiudiChat} aria-label="Chiudi">×</button>
             {fantinoChat ? (
               <>
-                <button className="chat-overlay-indietro" onClick={() => setFantinoChat(null)}>← Fantini</button>
+                <button className="chat-overlay-indietro" onClick={() => { setFantinoChat(null); carica(); }}>← Fantini</button>
                 <FantinoChat
                   partitaId={id}
                   fantinoId={fantinoChat.id}
                   fantinoNome={fantinoChat.nome}
                   fantinoSoprannome={fantinoChat.soprannome ?? undefined}
+                  fantinoFoto={fantinoChat.foto}
+                  livelloIniziale={livelli[fantinoChat.id] ?? fantinoChat.livello_base}
                 />
               </>
             ) : (
@@ -167,11 +171,14 @@ export default function PaginaFantini() {
                 {conChat.length === 0 && (
                   <p className="aiuto">Non puoi ancora scrivere a nessuno: fai prima un&apos;iniziativa con un fantino.</p>
                 )}
-                {conChat.map((f) => (
-                  <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => setFantinoChat(f)}>
-                    {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}
-                  </button>
-                ))}
+                {conChat.map((f) => {
+                  const acc = accordoPiuForte(accordiPer[f.id]);
+                  return (
+                    <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => setFantinoChat(f)}>
+                      {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -182,9 +189,9 @@ export default function PaginaFantini() {
 }
 
 function SchedaFantino({
-  f, livello, perc, nomeContrada, soloLettura, tipiAttivita, onFaiAttivita, onContinuita,
+  f, livello, perc, nomeContrada, soloLettura, accordo, tipiAttivita, onFaiAttivita, onContinuita,
 }: {
-  f: Fantino; livello: number; perc: number | null; nomeContrada: string; soloLettura: boolean;
+  f: Fantino; livello: number; perc: number | null; nomeContrada: string; soloLettura: boolean; accordo: string | null;
   tipiAttivita: TipoAttivita[];
   onFaiAttivita: (tipoId: string, costo: number) => Promise<{ successo: boolean; delta: number } | undefined>;
   onContinuita: () => void;
@@ -225,7 +232,10 @@ function SchedaFantino({
     <article className="scheda-fantino">
       <header className="scheda-fantino-testa">
         <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
-        {f.etichetta && <span className="badge-etichetta">{f.etichetta}</span>}
+        <div className="scheda-fantino-tag">
+          {accordo && <span className="badge-accordo">{accordo}</span>}
+          {f.etichetta && <span className="badge-etichetta">{f.etichetta}</span>}
+        </div>
       </header>
       <p className="scheda-fantino-sotto">{f.stato}{f.fascia ? ` · ${f.fascia}` : ''}</p>
 
