@@ -42,22 +42,40 @@ export default function Partita() {
     const uid = s.session.user.id;
     setMioId(uid);
 
-    const [mRes, pRes, cRes, moRes, evRes, memRes] = await Promise.all([
+    const [mRes, pRes, evRes] = await Promise.all([
       supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', uid).single(),
       supabase.from('partite').select('nome, anno, codice').eq('id', id).single(),
-      supabase.from('contrade').select('*').order('nome'),
-      supabase.from('movimenti_crediti').select('id, contrada_id, importo, motivo, creato_il').eq('partita_id', id),
       supabase.from('eventi').select('id, tipo, titolo, testo, creato_il').eq('partita_id', id).order('creato_il', { ascending: false }).limit(30),
-      supabase.from('membri').select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)').eq('partita_id', id),
     ]);
 
     if (!mRes.data) return router.replace('/partite');
+    const eSindaco = mRes.data.ruolo === 'sindaco';
+    const contradeRichiesta = eSindaco
+      ? supabase.from('contrade').select('id, nome').order('nome')
+      : mRes.data.contrada_id
+        ? supabase.from('contrade').select('id, nome, rivale').eq('id', mRes.data.contrada_id)
+        : Promise.resolve({ data: [] });
+    const movimentiRichiesti = eSindaco
+      ? supabase.from('movimenti_crediti').select('id, contrada_id, importo, motivo, creato_il').eq('partita_id', id)
+      : mRes.data.contrada_id
+        ? supabase.from('movimenti_crediti').select('id, contrada_id, importo, motivo, creato_il').eq('partita_id', id).eq('contrada_id', mRes.data.contrada_id)
+        : Promise.resolve({ data: [] });
+    const membriRichiesti = eSindaco
+      ? supabase.from('membri').select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)').eq('partita_id', id)
+      : Promise.resolve({ data: [] });
+
+    const [cRes, moRes, memRes] = await Promise.all([
+      contradeRichiesta,
+      movimentiRichiesti,
+      membriRichiesti,
+    ]);
+
     setIo(mRes.data);
     setPartita(pRes.data);
     setContrade((cRes.data ?? []) as Contrada[]);
     setMovimenti(((moRes.data ?? []) as Movimento[]).map((m) => ({ ...m, importo: Number(m.importo) })));
     setEventi((evRes.data ?? []) as Evento[]);
-    if (mRes.data.ruolo === 'sindaco') setMembri((memRes.data as unknown as Membro[]) ?? []);
+    setMembri((memRes.data as unknown as Membro[]) ?? []);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);

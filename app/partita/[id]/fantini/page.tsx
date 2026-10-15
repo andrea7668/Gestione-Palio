@@ -60,9 +60,9 @@ export default function PaginaFantini() {
 
     if (m.contrada_id) {
       const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: movs }, { data: acc }] = await Promise.all([
-        supabase.from('fantini').select('*').order('nome'),
+        supabase.from('fantini').select('id, nome, soprannome, eta, overall, palii_corsi, vittorie, etichetta, stato, fascia, mossa, sanmartino_curva1, sanmartino_curva2, sanmartino_curva3, casato_curva1, casato_curva2, casato_curva3, nerbate_disponibili, parate_disponibili, livello_base, foto').order('nome'),
         supabase.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', id).eq('contrada_id', m.contrada_id),
-        supabase.from('tipi_attivita').select('*').order('nome'),
+        supabase.from('tipi_attivita').select('id, nome, costo_minimo, costo_massimo, variazione_massima').order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('movimenti_crediti').select('importo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('accordi_fantini').select('fantino_id, tipo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
@@ -81,7 +81,7 @@ export default function PaginaFantini() {
       setAccordiPer(perFantino);
       setSaldo((movs ?? []).reduce((t, x) => t + Number(x.importo), 0));
     } else if (m.ruolo === 'sindaco') {
-      const { data: f } = await supabase.from('fantini').select('*').order('nome');
+      const { data: f } = await supabase.from('fantini').select('id, nome, soprannome, eta, overall, palii_corsi, vittorie, etichetta, stato, fascia, mossa, sanmartino_curva1, sanmartino_curva2, sanmartino_curva3, casato_curva1, casato_curva2, casato_curva3, nerbate_disponibili, parate_disponibili, livello_base, foto').order('nome');
       setFantini((f as Fantino[]) ?? []);
     }
     setCaricato(true);
