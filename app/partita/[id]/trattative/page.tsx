@@ -6,6 +6,7 @@ import { supabase } from '../../../../lib/supabase';
 import { INFO_FASI, FASI_CON_TRATTATIVE } from '../../../../lib/fasi';
 import { nomeAccordo } from '../../../../lib/accordi';
 import { useFase } from '../../../../lib/contesto-fase';
+import { useAggiorna } from '../../../../lib/useAggiorna';
 
 type Accordo = {
   id: number;
@@ -32,23 +33,34 @@ export default function CentroTrattative() {
     if (!s.session) return router.replace('/accedi');
     const { data: m } = await supabase
       .from('membri')
-      .select('ruolo')
+      .select('ruolo, contrada_id')
       .eq('partita_id', id)
       .eq('utente_id', s.session.user.id)
       .single();
     if (!m) return router.replace('/partite');
-    setESindaco(m.ruolo === 'sindaco');
 
-    const { data } = await supabase
+    const sindaco = m.ruolo === 'sindaco';
+    setESindaco(sindaco);
+
+    if (!sindaco && !m.contrada_id) {
+      setAccordi([]);
+      setCaricato(true);
+      return;
+    }
+
+    let richiesta = supabase
       .from('accordi_fantini')
       .select('id, tipo, testo, aggiornato_il, fantini(nome, soprannome), contrade(nome)')
-      .eq('partita_id', id)
-      .order('aggiornato_il', { ascending: false });
+      .eq('partita_id', id);
+    if (!sindaco && m.contrada_id) richiesta = richiesta.eq('contrada_id', m.contrada_id);
+
+    const { data } = await richiesta.order('aggiornato_il', { ascending: false });
     setAccordi((data ?? []) as unknown as Accordo[]);
     setCaricato(true);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
+  useAggiorna(carica, 20000);
 
   if (!caricato) return null;
 

@@ -12,6 +12,7 @@ type Accordo = { id: number; tipo: string; testo: string };
 
 interface Props {
   partitaId: string;
+  contradaId: string;
   fantinoId: string;
   fantinoNome: string;
   fantinoSoprannome?: string;
@@ -21,7 +22,7 @@ interface Props {
 
 const ora = (iso: string) => new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-export default function FantinoChat({ partitaId, fantinoId, fantinoNome, fantinoSoprannome, fantinoFoto, livelloIniziale }: Props) {
+export default function FantinoChat({ partitaId, contradaId, fantinoId, fantinoNome, fantinoSoprannome, fantinoFoto, livelloIniziale }: Props) {
   const { fase } = useFase();
   const inTratta = !!fase && FASI_CON_ACCORDI.includes(fase);
   const [messaggi, setMessaggi] = useState<Messaggio[]>([]);
@@ -37,25 +38,28 @@ export default function FantinoChat({ partitaId, fantinoId, fantinoNome, fantino
       .from('accordi_fantini')
       .select('id, tipo, testo')
       .eq('partita_id', partitaId)
+      .eq('contrada_id', contradaId)
       .eq('fantino_id', fantinoId);
     setAccordi((data ?? []) as Accordo[]);
-  }, [partitaId, fantinoId]);
+  }, [partitaId, contradaId, fantinoId]);
 
   const caricaLivello = useCallback(async () => {
     const { data } = await supabase
       .from('relazioni_contrada_fantino')
       .select('livello')
       .eq('partita_id', partitaId)
+      .eq('contrada_id', contradaId)
       .eq('fantino_id', fantinoId)
       .maybeSingle();
     if (data) setLivello(data.livello);
-  }, [partitaId, fantinoId]);
+  }, [partitaId, contradaId, fantinoId]);
 
   useEffect(() => {
     supabase
       .from('chat_messaggi')
       .select('autore, contenuto, creato_il')
       .eq('partita_id', partitaId)
+      .eq('contrada_id', contradaId)
       .eq('fantino_id', fantinoId)
       .order('creato_il', { ascending: true })
       .order('id', { ascending: true })
@@ -63,7 +67,7 @@ export default function FantinoChat({ partitaId, fantinoId, fantinoNome, fantino
       .then(({ data }) => { if (data) setMessaggi(data as Messaggio[]); });
     caricaAccordi();
     caricaLivello();
-  }, [partitaId, fantinoId, caricaAccordi, caricaLivello]);
+  }, [partitaId, contradaId, fantinoId, caricaAccordi, caricaLivello]);
 
   useEffect(() => {
     fine.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -7,6 +7,7 @@ import { FASI_CHAT_LIBERA, INFO_FASI } from '../../../../lib/fasi';
 import { TIPI_ACCORDO, etichettaRapporto } from '../../../../lib/accordi';
 import { useFase } from '../../../../lib/contesto-fase';
 import FantinoChat from '../../../../components/FantinoChat';
+import FotoFantino from '../../../../components/FotoFantino';
 
 const SOGLIA_CONTINUITA = 60;
 
@@ -113,8 +114,15 @@ export default function PaginaFantini() {
   const eSindaco = ruolo === 'sindaco';
   if (!contradaId && !eSindaco) return <p className="carta">In attesa: il Sindaco deve ancora assegnarti ruolo e Contrada.</p>;
   const soloLettura = !contradaId;
+
+  // Dal rapporto più alto al più basso; a parità, in ordine alfabetico. Il Sindaco li vede in ordine alfabetico.
+  const rapportoDi = (f: Fantino) => livelli[f.id] ?? f.livello_base;
+  const ordinati = soloLettura
+    ? fantini
+    : [...fantini].sort((a, b) => rapportoDi(b) - rapportoDi(a) || a.nome.localeCompare(b.nome, 'it'));
+
   const chatLibera = !!fase && FASI_CHAT_LIBERA.includes(fase);
-  const conChat = chatLibera ? fantini : fantini.filter((f) => sbloccati.has(f.id));
+  const conChat = chatLibera ? ordinati : ordinati.filter((f) => sbloccati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -125,8 +133,8 @@ export default function PaginaFantini() {
       )}
 
       <div className="griglia-fantini">
-        {fantini.map((f) => {
-          const livello = livelli[f.id] ?? f.livello_base;
+        {ordinati.map((f) => {
+          const livello = rapportoDi(f);
           const perc = f.palii_corsi > 0 ? Math.round((f.vittorie / f.palii_corsi) * 100) : null;
           return (
             <SchedaFantino
@@ -149,7 +157,7 @@ export default function PaginaFantini() {
         <button className="chat-fantini-fab" onClick={() => setChatAperta(true)}>💬 Chat fantini</button>
       )}
 
-      {chatAperta && (
+      {chatAperta && contradaId && (
         <div className="chat-overlay" onClick={chiudiChat}>
           <div className="chat-overlay-pannello" onClick={(e) => e.stopPropagation()}>
             <button className="chat-overlay-chiudi" onClick={chiudiChat} aria-label="Chiudi">×</button>
@@ -158,11 +166,12 @@ export default function PaginaFantini() {
                 <button className="chat-overlay-indietro" onClick={() => { setFantinoChat(null); carica(); }}>← Fantini</button>
                 <FantinoChat
                   partitaId={id}
+                  contradaId={contradaId}
                   fantinoId={fantinoChat.id}
                   fantinoNome={fantinoChat.nome}
                   fantinoSoprannome={fantinoChat.soprannome ?? undefined}
                   fantinoFoto={fantinoChat.foto}
-                  livelloIniziale={livelli[fantinoChat.id] ?? fantinoChat.livello_base}
+                  livelloIniziale={rapportoDi(fantinoChat)}
                 />
               </>
             ) : (
@@ -237,7 +246,13 @@ function SchedaFantino({
   return (
     <article className="scheda-fantino">
       <header className="scheda-fantino-testa">
-        <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
+        <div className="scheda-fantino-id">
+          <FotoFantino nome={f.nome} foto={f.foto} />
+        <div className="scheda-fantino-id">
+          <FotoFantino nome={f.nome} foto={f.foto} />
+          <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
+        </div>
+        </div>
         <div className="scheda-fantino-tag">
           {accordo && <span className="badge-accordo">{accordo}</span>}
           {f.etichetta && <span className="badge-etichetta">{f.etichetta}</span>}

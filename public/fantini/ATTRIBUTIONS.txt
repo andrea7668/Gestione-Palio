@@ -1,0 +1,44 @@
+These photographs have been re-encoded to remove embedded metadata, including
+potential location data. Each image remains available under its source license.
+
+tittia.jpg
+  Title: Tittia ago09.JPG
+  Author: Roberto Vicario
+  Source: https://commons.wikimedia.org/wiki/File:Tittia_ago09.JPG
+  License: CC BY-SA 3.0 https://creativecommons.org/licenses/by-sa/3.0
+
+gingillo.jpg
+  Title: Gingillo lug09.JPG
+  Author: Roberto Vicario
+  Source: https://commons.wikimedia.org/wiki/File:Gingillo_lug09.JPG
+  License: CC BY-SA 3.0 https://creativecommons.org/licenses/by-sa/3.0
+
+velluto.jpg
+  Title: Velluto 2025.jpg
+  Author: Paolo Menchetti
+  Source: https://commons.wikimedia.org/wiki/File:Velluto_2025.jpg
+  License: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0
+
+brigante.jpg
+  Title: Tabacco e Brigante.jpg
+  Author: Paolo Menchetti
+  Source: https://commons.wikimedia.org/wiki/File:Tabacco_e_Brigante.jpg
+  License: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0
+
+scompiglio.jpg
+  Title: Scompiglio-Ivanov.jpg
+  Author: Janus Kinase
+  Source: https://commons.wikimedia.org/wiki/File:Scompiglio-Ivanov.jpg
+  License: CC BY-SA 2.0 https://creativecommons.org/licenses/by-sa/2.0
+
+tempesta.jpg
+  Title: Tempesta 2018.jpg
+  Author: Paolo Menchetti
+  Source: https://commons.wikimedia.org/wiki/File:Tempesta_2018.jpg
+  License: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0
+
+tremendo.jpg
+  Title: Tremendo-Guess.jpg
+  Author: Janus Kinase
+  Source: https://commons.wikimedia.org/wiki/File:Tremendo-Guess.jpg
+  License: CC BY-SA 2.0 https://creativecommons.org/licenses/by-sa/2.0

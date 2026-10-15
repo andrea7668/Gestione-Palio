@@ -274,7 +274,7 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
       const prima = accordiEsistenti.find((a) => a.tipo === tipo);
       if (prima && prima.testo === riassunto) continue;
 
-      await supabase.from('accordi_fantini').upsert(
+      const { error: erroreAccordo } = await supabase.from('accordi_fantini').upsert(
         {
           partita_id,
           contrada_id: membro.contrada_id,
@@ -285,6 +285,10 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
         },
         { onConflict: 'partita_id,contrada_id,fantino_id,tipo' }
       );
+      if (erroreAccordo) {
+        console.error('Accordo non registrato:', erroreAccordo.message);
+        continue;
+      }
       registrati += 1;
 
       const nomeTipo = TIPI_ACCORDO.find((t) => t.chiave === tipo)?.nome ?? tipo;

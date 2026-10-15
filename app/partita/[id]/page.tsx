@@ -9,6 +9,7 @@ import { useFase } from '../../../lib/contesto-fase';
 import ChatContrada from '../../../components/ChatContrada';
 import FotoContrada from '../../../components/FotoContrada';
 import { useAggiorna } from '../../../lib/useAggiorna';
+import FotoFantino from '../../../components/FotoFantino';
 
 type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
 type Contrada = { id: string; nome: string; rivale?: string | null };
