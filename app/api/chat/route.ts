@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { comeFase, FASI_CON_ACCORDI, FASI_CHAT_LIBERA, FASI_RAPPORTO_DIRETTO } from '../../../lib/fasi';
+import { comeFase, FASI_CON_ACCORDI, FASI_RAPPORTO_DIRETTO } from '../../../lib/fasi';
 import { TIPI_ACCORDO } from '../../../lib/accordi';
 
 export const maxDuration = 60;
@@ -78,18 +78,16 @@ export async function POST(req: NextRequest) {
   const faseAccordi = FASI_CON_ACCORDI.includes(fase);
   const rapportoDiretto = FASI_RAPPORTO_DIRETTO.includes(fase);
 
-  if (!FASI_CHAT_LIBERA.includes(fase)) {
-    const { data: svolte } = await supabase
-      .from('attivita_svolte')
-      .select('id')
-      .eq('partita_id', partita_id)
-      .eq('contrada_id', membro.contrada_id)
-      .eq('fantino_id', fantino_id)
-      .limit(1);
+  const { data: svolte } = await supabase
+    .from('attivita_svolte')
+    .select('id')
+    .eq('partita_id', partita_id)
+    .eq('contrada_id', membro.contrada_id)
+    .eq('fantino_id', fantino_id)
+    .limit(1);
 
-    if (!svolte || svolte.length === 0) {
-      return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
-    }
+  if (!svolte || svolte.length === 0) {
+    return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
   }
 
   const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();

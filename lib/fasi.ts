@@ -11,7 +11,6 @@ export const INFO_FASI: Record<Fase, { nome: string; sotto: string; disponibile:
 // Cosa si apre in ogni fase: cambia questi elenchi per cambiare le regole
 export const FASI_CON_TRATTATIVE: readonly Fase[] = ['tratta1', 'tratta2'];  // Centro trattative attivo
 export const FASI_CON_ACCORDI: readonly Fase[] = ['tratta1'];                // i fantini possono concedere accordi
-export const FASI_CHAT_LIBERA: readonly Fase[] = ['tratta1'];                // chat con tutti, senza iniziativa
 export const FASI_RAPPORTO_DIRETTO: readonly Fase[] = ['inverno'];           // la chat può cambiare il rapporto
 
 export function comeFase(valore: string | null | undefined): Fase {

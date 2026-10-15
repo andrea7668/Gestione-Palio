@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../../lib/supabase';
-import { FASI_CHAT_LIBERA, INFO_FASI } from '../../../../lib/fasi';
+import { INFO_FASI } from '../../../../lib/fasi';
 import { TIPI_ACCORDO, etichettaRapporto } from '../../../../lib/accordi';
 import { useFase } from '../../../../lib/contesto-fase';
 import FantinoChat from '../../../../components/FantinoChat';
@@ -121,8 +121,7 @@ export default function PaginaFantini() {
     ? fantini
     : [...fantini].sort((a, b) => rapportoDi(b) - rapportoDi(a) || a.nome.localeCompare(b.nome, 'it'));
 
-  const chatLibera = !!fase && FASI_CHAT_LIBERA.includes(fase);
-  const conChat = chatLibera ? ordinati : ordinati.filter((f) => sbloccati.has(f.id));
+  const conChat = ordinati.filter((f) => sbloccati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -180,7 +179,7 @@ export default function PaginaFantini() {
                 {fase && (
                   <p className="aiuto">
                     Fase: {INFO_FASI[fase].nome}.{' '}
-                    {chatLibera ? 'Puoi parlare con tutti i fantini.' : "Puoi parlare solo con i fantini con cui hai fatto un'iniziativa."}
+                    Puoi parlare solo con i fantini con cui hai fatto un&apos;iniziativa.
                   </p>
                 )}
                 {conChat.length === 0 && (
@@ -248,10 +247,7 @@ function SchedaFantino({
       <header className="scheda-fantino-testa">
         <div className="scheda-fantino-id">
           <FotoFantino nome={f.nome} foto={f.foto} />
-        <div className="scheda-fantino-id">
-          <FotoFantino nome={f.nome} foto={f.foto} />
           <h3>{f.nome} {f.soprannome && <em>«{f.soprannome}»</em>}</h3>
-        </div>
         </div>
         <div className="scheda-fantino-tag">
           {accordo && <span className="badge-accordo">{accordo}</span>}
