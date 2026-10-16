@@ -28,6 +28,7 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [aperto, setAperto] = useState(false);
   const [ctx, setCtx] = useState<Contesto>(null);
+  const [realtimeAttivo, setRealtimeAttivo] = useState(false);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -49,15 +50,21 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const canale = supabase
-      .channel(`layout-${id}`)
+      .channel(`layout-${id}`, { config: { postgres_changes_options: { wait: true } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'membri', filter: `partita_id=eq.${id}` }, () => carica())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'partite', filter: `id=eq.${id}` }, () => carica())
-      .subscribe();
-    return () => { supabase.removeChannel(canale); };
+      .subscribe((status, error) => {
+        setRealtimeAttivo(status === 'SUBSCRIBED');
+        if (error) console.error('Realtime layout partita:', error.message);
+      });
+    return () => {
+      setRealtimeAttivo(false);
+      supabase.removeChannel(canale);
+    };
   }, [id, carica]);
 
   // Se il tempo reale non funziona (succede su alcune reti mobili) la fase si aggiorna comunque
-  useAggiorna(carica, 10000);
+  useAggiorna(carica, 10000, { realtimeAttivo });
 
   const etichettaRuolo = ctx?.ruolo === 'mangino' ? 'Mangino' : ctx?.ruolo === 'sindaco' ? 'Sindaco' : ctx?.ruolo === 'capitano' ? 'Capitano' : 'In attesa';
   const faseTratta = !!ctx && FASI_CON_TRATTATIVE.includes(ctx.fase);

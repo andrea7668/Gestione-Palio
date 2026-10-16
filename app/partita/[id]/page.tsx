@@ -9,12 +9,21 @@ import { useFase } from '../../../lib/contesto-fase';
 import ChatContrada from '../../../components/ChatContrada';
 import FotoContrada from '../../../components/FotoContrada';
 import { useAggiorna } from '../../../lib/useAggiorna';
-import FotoFantino from '../../../components/FotoFantino';
 
-type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; profiles: { nome: string; cognome: string; username: string } | null };
-type Contrada = { id: string; nome: string; rivale?: string | null };
-type Movimento = { id: number; contrada_id: string; importo: number; motivo: string; creato_il: string };
+type Membro = { utente_id: string; ruolo: string | null; contrada_id: string | null; nome: string | null; cognome: string | null; username: string | null };
+type Contrada = { id: string; nome: string; rivale: string | null; saldo: number };
+type Movimento = { id: number; importo: number; motivo: string; creato_il: string; prima: number; dopo: number };
 type Evento = { id: number; tipo: string; titolo: string; testo: string | null; creato_il: string };
+type DatiDashboard = {
+  partita: { nome: string; anno: number; codice: string | null };
+  io: { ruolo: string | null; contrada_id: string | null };
+  contrada: { id: string; nome: string; rivale: string | null } | null;
+  saldo: number;
+  movimenti: Movimento[];
+  eventi: Evento[];
+  membri: Membro[];
+  contrade: Contrada[];
+};
 
 const ETICHETTE_EVENTI: Record<string, string> = {
     fase: 'Fase', ruolo: 'Ruoli', crediti: 'Crediti', iniziativa: 'Iniziativa', continuita: 'Continuità', promessa: 'Promessa', accordo: 'Accordo',
@@ -29,12 +38,9 @@ export default function Partita() {
   const router = useRouter();
   const { fase, ricarica } = useFase();
   const [mioId, setMioId] = useState('');
-  const [partita, setPartita] = useState<{ nome: string; anno: number; codice: string } | null>(null);
-  const [io, setIo] = useState<{ ruolo: string | null; contrada_id: string | null } | null>(null);
-  const [membri, setMembri] = useState<Membro[]>([]);
-  const [contrade, setContrade] = useState<Contrada[]>([]);
-  const [movimenti, setMovimenti] = useState<Movimento[]>([]);
-  const [eventi, setEventi] = useState<Evento[]>([]);
+  const [dati, setDati] = useState<DatiDashboard | null>(null);
+  const [errore, setErrore] = useState<string | null>(null);
+  const [realtimeAttivo, setRealtimeAttivo] = useState(false);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -42,52 +48,33 @@ export default function Partita() {
     const uid = s.session.user.id;
     setMioId(uid);
 
-    const [mRes, pRes, evRes] = await Promise.all([
-      supabase.from('membri').select('ruolo, contrada_id').eq('partita_id', id).eq('utente_id', uid).single(),
-      supabase.from('partite').select('nome, anno, codice').eq('id', id).single(),
-      supabase.from('eventi').select('id, tipo, titolo, testo, creato_il').eq('partita_id', id).order('creato_il', { ascending: false }).limit(30),
-    ]);
-
-    if (!mRes.data) return router.replace('/partite');
-    const eSindaco = mRes.data.ruolo === 'sindaco';
-    const contradeRichiesta = eSindaco
-      ? supabase.from('contrade').select('id, nome').order('nome')
-      : mRes.data.contrada_id
-        ? supabase.from('contrade').select('id, nome, rivale').eq('id', mRes.data.contrada_id)
-        : Promise.resolve({ data: [] });
-    const movimentiRichiesti = eSindaco
-      ? supabase.from('movimenti_crediti').select('id, contrada_id, importo, motivo, creato_il').eq('partita_id', id)
-      : mRes.data.contrada_id
-        ? supabase.from('movimenti_crediti').select('id, contrada_id, importo, motivo, creato_il').eq('partita_id', id).eq('contrada_id', mRes.data.contrada_id)
-        : Promise.resolve({ data: [] });
-    const membriRichiesti = eSindaco
-      ? supabase.from('membri').select('utente_id, ruolo, contrada_id, profiles(nome, cognome, username)').eq('partita_id', id)
-      : Promise.resolve({ data: [] });
-
-    const [cRes, moRes, memRes] = await Promise.all([
-      contradeRichiesta,
-      movimentiRichiesti,
-      membriRichiesti,
-    ]);
-
-    setIo(mRes.data);
-    setPartita(pRes.data);
-    setContrade((cRes.data ?? []) as Contrada[]);
-    setMovimenti(((moRes.data ?? []) as Movimento[]).map((m) => ({ ...m, importo: Number(m.importo) })));
-    setEventi((evRes.data ?? []) as Evento[]);
-    setMembri((memRes.data as unknown as Membro[]) ?? []);
+    const { data, error } = await supabase.rpc('dashboard_partita', { p_partita: id });
+    if (error) {
+      console.error('dashboard_partita:', error.message);
+      setErrore('Caricamento non riuscito. Riprova tra poco.');
+      return;
+    }
+    if (!data) return router.replace('/partite');
+    setErrore(null);
+    setDati(data as DatiDashboard);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
-  useAggiorna(carica, 8000);
+  useAggiorna(carica, 8000, { realtimeAttivo });
 
   useEffect(() => {
     const canale = supabase
-      .channel(`partita-${id}`)
+      .channel(`partita-${id}`, { config: { postgres_changes_options: { wait: true } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'membri', filter: `partita_id=eq.${id}` }, () => carica())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'eventi', filter: `partita_id=eq.${id}` }, () => carica())
-      .subscribe();
-    return () => { supabase.removeChannel(canale); };
+      .subscribe((status, error) => {
+        setRealtimeAttivo(status === 'SUBSCRIBED');
+        if (error) console.error('Realtime dashboard partita:', error.message);
+      });
+    return () => {
+      setRealtimeAttivo(false);
+      supabase.removeChannel(canale);
+    };
   }, [id, carica]);
 
   async function assegna(utente_id: string, ruolo: string, contrada_id: string) {
@@ -117,47 +104,52 @@ export default function Partita() {
   }
 
   const saldoContrada = (contrada_id: string) =>
-    Math.round(movimenti.filter((m) => m.contrada_id === contrada_id).reduce((tot, m) => tot + Number(m.importo), 0) * 100) / 100;
+    dati?.contrade.find((c) => c.id === contrada_id)?.saldo ?? 0;
 
   async function assegnaCrediti(contrada_id: string, importo: number) {
-    const provvisorio: Movimento = { id: -Date.now(), contrada_id, importo, motivo: `Aggiunta di ${importo} crediti`, creato_il: new Date().toISOString() };
-    setMovimenti((prev) => [...prev, provvisorio]);
+    setDati((prev) => prev ? {
+      ...prev,
+      contrade: prev.contrade.map((c) =>
+        c.id === contrada_id ? { ...c, saldo: Math.round((c.saldo + importo) * 100) / 100 } : c
+      ),
+    } : prev);
     const r = await chiama({ azione: 'crediti', partita_id: id, contrada_id, importo });
     if (!r.ok) {
-      setMovimenti((prev) => prev.filter((m) => m.id !== provvisorio.id));
+      setDati((prev) => prev ? {
+        ...prev,
+        contrade: prev.contrade.map((c) =>
+          c.id === contrada_id ? { ...c, saldo: Math.round((c.saldo - importo) * 100) / 100 } : c
+        ),
+      } : prev);
       alert(r.error);
     }
   }
 
-  if (!io || !partita) return null;
+  if (!dati) {
+    return errore ? (
+      <main className="pagina">
+        <section className="carta"><p className="errore">{errore}</p></section>
+      </main>
+    ) : null;
+  }
 
+  const { partita, io } = dati;
   const eSindaco = io.ruolo === 'sindaco';
   const contradaId = io.contrada_id;
-  const contradaCorrente = contrade.find((c) => c.id === contradaId);
+  const contradaCorrente = dati.contrade.find((c) => c.id === contradaId)
+    ?? (dati.contrada ? { ...dati.contrada, saldo: dati.saldo } : undefined);
   const nomeContrada = contradaCorrente?.nome ?? '';
   const nomeFase = fase ? INFO_FASI[fase].nome : '';
 
-  const righeMov = (() => {
-    if (!contradaId) return [];
-    let corrente = 0;
-    return movimenti
-      .filter((m) => m.contrada_id === contradaId)
-      .sort((a, b) => a.creato_il.localeCompare(b.creato_il))
-      .map((m) => {
-        const prima = corrente;
-        corrente = Math.round((corrente + m.importo) * 100) / 100;
-        return { ...m, prima, dopo: corrente };
-      })
-      .reverse();
-  })();
-  const saldo = righeMov.length > 0 ? righeMov[0].dopo : 0;
+  const righeMov = dati.movimenti;
+  const saldo = dati.saldo;
 
   const timeline = (
     <section className="carta">
       <h3 className="dash-titolo">Timeline degli eventi</h3>
-      {eventi.length === 0 && <p className="aiuto">Nessun evento ancora.</p>}
+      {dati.eventi.length === 0 && <p className="aiuto">Nessun evento ancora.</p>}
       <div className="tl-lista">
-        {eventi.map((e) => (
+        {dati.eventi.map((e) => (
           <div key={e.id}>
             <p className="tl-tipo">{ETICHETTE_EVENTI[e.tipo] ?? e.tipo}</p>
             <p className="tl-titolo">{e.titolo}</p>
@@ -260,9 +252,9 @@ export default function Partita() {
 
       <section className="carta">
         <h2>Giocatori</h2>
-        {membri.filter((m) => m.ruolo !== 'sindaco').length === 0 && <p className="aiuto">Nessun giocatore ancora. Condividi il codice della partita.</p>}
-        {membri.filter((m) => m.ruolo !== 'sindaco').map((m) => (
-          <RigaGiocatore key={m.utente_id} m={m} contrade={contrade} salva={assegna} saldoContrada={saldoContrada} assegnaCrediti={assegnaCrediti} />
+        {dati.membri.length === 0 && <p className="aiuto">Nessun giocatore ancora. Condividi il codice della partita.</p>}
+        {dati.membri.map((m) => (
+          <RigaGiocatore key={m.utente_id} m={m} contrade={dati.contrade} salva={assegna} saldoContrada={saldoContrada} assegnaCrediti={assegnaCrediti} />
         ))}
       </section>
 
@@ -324,7 +316,7 @@ function RigaGiocatore({
 
   return (
     <div className="riga-giocatore">
-      <span className="riga-nome">{m.profiles?.nome} {m.profiles?.cognome} <em>({m.profiles?.username})</em></span>
+      <span className="riga-nome">{m.nome} {m.cognome} <em>({m.username})</em></span>
       <select className="campo" value={ruolo} onChange={(e) => setRuolo(e.target.value)}>
         <option value="">Ruolo</option>
         <option value="capitano">Capitano</option>

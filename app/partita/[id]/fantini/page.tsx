@@ -21,6 +21,10 @@ type Fantino = {
 };
 type TipoAttivita = { id: string; nome: string; costo_minimo: number; costo_massimo: number; variazione_massima: number };
 
+const COLONNE_FANTINO =
+  'id, nome, soprannome, eta, overall, palii_corsi, vittorie, etichetta, stato, fascia, mossa, sanmartino_curva1, sanmartino_curva2, sanmartino_curva3, casato_curva1, casato_curva2, casato_curva3, nerbate_disponibili, parate_disponibili, livello_base, foto';
+const COLONNE_ATTIVITA = 'id, nome, costo_minimo, costo_massimo, variazione_massima';
+
 function accordoPiuForte(tipi: string[] | undefined): string | null {
   if (!tipi || tipi.length === 0) return null;
   const migliore = [...TIPI_ACCORDO].reverse().find((t) => tipi.includes(t.chiave));
@@ -34,7 +38,8 @@ export default function PaginaFantini() {
   const [ruolo, setRuolo] = useState<string | null>(null);
   const [contradaId, setContradaId] = useState<string | null>(null);
   const [nomeContrada, setNomeContrada] = useState('');
-  const [saldo, setSaldo] = useState(0);
+  const [saldo, setSaldo] = useState<number | null>(null);
+  const [erroreSaldo, setErroreSaldo] = useState<string | null>(null);
   const [fantini, setFantini] = useState<Fantino[]>([]);
   const [livelli, setLivelli] = useState<Record<string, number>>({});
   const [sbloccati, setSbloccati] = useState<Set<string>>(new Set());
@@ -59,14 +64,22 @@ export default function PaginaFantini() {
     setNomeContrada((m.contrade as unknown as { nome: string } | null)?.nome ?? '');
 
     if (m.contrada_id) {
-      const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: movs }, { data: acc }] = await Promise.all([
-        supabase.from('fantini').select('id, nome, soprannome, eta, overall, palii_corsi, vittorie, etichetta, stato, fascia, mossa, sanmartino_curva1, sanmartino_curva2, sanmartino_curva3, casato_curva1, casato_curva2, casato_curva3, nerbate_disponibili, parate_disponibili, livello_base, foto').order('nome'),
+      const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }] = await Promise.all([
+        supabase.from('fantini').select(COLONNE_FANTINO).order('nome'),
         supabase.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', id).eq('contrada_id', m.contrada_id),
-        supabase.from('tipi_attivita').select('id, nome, costo_minimo, costo_massimo, variazione_massima').order('nome'),
+        supabase.from('tipi_attivita').select(COLONNE_ATTIVITA).order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
-        supabase.from('movimenti_crediti').select('importo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
+        supabase.from('saldi_contrade').select('saldo').eq('partita_id', id).eq('contrada_id', m.contrada_id).maybeSingle(),
         supabase.from('accordi_fantini').select('fantino_id, tipo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
       ]);
+      if (erroreSaldoQuery) {
+        console.error('saldi_contrade:', erroreSaldoQuery.message);
+        setErroreSaldo('Saldo non disponibile. Riprova tra poco.');
+        setSaldo(null);
+      } else {
+        setErroreSaldo(null);
+        setSaldo(Number(sal?.saldo ?? 0));
+      }
       setFantini((f as Fantino[]) ?? []);
       const mappa: Record<string, number> = {};
       (rel ?? []).forEach((r) => { mappa[r.fantino_id] = r.livello; });
@@ -79,9 +92,8 @@ export default function PaginaFantini() {
       const perFantino: Record<string, string[]> = {};
       (acc ?? []).forEach((a) => { (perFantino[a.fantino_id] ??= []).push(a.tipo); });
       setAccordiPer(perFantino);
-      setSaldo((movs ?? []).reduce((t, x) => t + Number(x.importo), 0));
     } else if (m.ruolo === 'sindaco') {
-      const { data: f } = await supabase.from('fantini').select('id, nome, soprannome, eta, overall, palii_corsi, vittorie, etichetta, stato, fascia, mossa, sanmartino_curva1, sanmartino_curva2, sanmartino_curva3, casato_curva1, casato_curva2, casato_curva3, nerbate_disponibili, parate_disponibili, livello_base, foto').order('nome');
+      const { data: f } = await supabase.from('fantini').select(COLONNE_FANTINO).order('nome');
       setFantini((f as Fantino[]) ?? []);
     }
     setCaricato(true);
@@ -128,8 +140,9 @@ export default function PaginaFantini() {
       {soloLettura ? (
         <p className="aiuto" style={{ marginBottom: 14 }}>Vista del Sindaco: schede in sola lettura.</p>
       ) : (
-        <p className="aiuto" style={{ marginBottom: 14 }}>Crediti disponibili: <strong>{saldo}</strong></p>
+        <p className="aiuto" style={{ marginBottom: 14 }}>Crediti disponibili: <strong>{saldo ?? 'non disponibili'}</strong></p>
       )}
+      {erroreSaldo && <p className="errore" role="alert">{erroreSaldo}</p>}
 
       <div className="griglia-fantini">
         {ordinati.map((f) => {

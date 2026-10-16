@@ -49,6 +49,7 @@ export default function BarraSuperiore({
   const [uid, setUid] = useState<string | null>(null);
   const [notifiche, setNotifiche] = useState<Notifica[]>([]);
   const [aperto, setAperto] = useState(false);
+  const [realtimeAttivo, setRealtimeAttivo] = useState(false);
   const rif = useRef<HTMLDivElement>(null);
 
   const caricaNotifiche = useCallback(async (utente: string) => {
@@ -73,15 +74,21 @@ export default function BarraSuperiore({
     })();
   }, [caricaNotifiche]);
 
-  useAggiorna(() => { if (uid) caricaNotifiche(uid); }, 20000);
+  useAggiorna(() => { if (uid) caricaNotifiche(uid); }, 20000, { realtimeAttivo });
 
   useEffect(() => {
     if (!uid) return;
     const canale = supabase
-      .channel(`notifiche-${uid}`)
+      .channel(`notifiche-${uid}`, { config: { postgres_changes_options: { wait: true } } })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifiche', filter: `utente_id=eq.${uid}` }, () => caricaNotifiche(uid))
-      .subscribe();
-    return () => { supabase.removeChannel(canale); };
+      .subscribe((status, error) => {
+        setRealtimeAttivo(status === 'SUBSCRIBED');
+        if (error) console.error('Realtime notifiche:', error.message);
+      });
+    return () => {
+      setRealtimeAttivo(false);
+      supabase.removeChannel(canale);
+    };
   }, [uid, caricaNotifiche]);
 
   useEffect(() => {
