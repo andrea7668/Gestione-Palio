@@ -67,68 +67,59 @@ export async function POST(req: NextRequest) {
     const testo = String(b.testo ?? '').trim().slice(0, 500);
     if (!testo) return err('Scrivi un messaggio.');
 
-    const { count } = await db.from('chat_contrada')
-      .select('id', { count: 'exact', head: true })
-      .eq('utente_id', uid)
-      .gte('creato_il', new Date(Date.now() - 60000).toISOString());
+    const daQuando = new Date(Date.now() - 60000).toISOString();
+    const [{ count }, nome] = await Promise.all([
+      db.from('chat_contrada')
+        .select('id', { count: 'exact', head: true })
+        .eq('utente_id', uid)
+        .gte('creato_il', daQuando),
+      nomeUtente(uid),
+    ]);
     if ((count ?? 0) >= 20) return err('Stai scrivendo troppo in fretta: aspetta un momento.', 429);
 
-    const nome = await nomeUtente(uid);
-    const { error } = await db.from('chat_contrada').insert({
+    const { data: messaggio, error } = await db.from('chat_contrada').insert({
       partita_id: b.partita_id, contrada_id: me.contrada_id, utente_id: uid, autore_nome: nome, contenuto: testo,
-    });
-    if (error) return err('Messaggio non inviato.', 500);
-    return NextResponse.json({ ok: true });
+    }).select('id, utente_id, autore_nome, contenuto, creato_il').single();
+    if (error || !messaggio) return err('Messaggio non inviato.', 500);
+    return NextResponse.json({ ok: true, messaggio });
   }
 
   if (b.azione === 'fai_attivita') {
     if (!me.contrada_id) return err('Non hai ancora una Contrada assegnata.', 403);
-    const { data: tipo } = await db.from('tipi_attivita').select('*').eq('id', b.tipo_attivita_id).single();
-    if (!tipo) return err('Attività non trovata.', 404);
-
     const costo = Number(b.costo);
-    if (!(costo >= Number(tipo.costo_minimo) && costo <= Number(tipo.costo_massimo))) {
-      return err(`Scegli un importo tra ${tipo.costo_minimo} e ${tipo.costo_massimo}.`);
+    if (!Number.isFinite(costo)) return err('Costo non valido.');
+
+    const { data: risultato, error: erroreAttivita } = await db.rpc('fai_attivita', {
+      p_partita: b.partita_id,
+      p_utente: uid,
+      p_fantino: b.fantino_id,
+      p_tipo_attivita: b.tipo_attivita_id,
+      p_costo: costo,
+    });
+    if (erroreAttivita) {
+      console.error('fai_attivita:', erroreAttivita.message);
+      const messaggio = erroreAttivita.message.startsWith('ATTIVITA:')
+        ? erroreAttivita.message.slice('ATTIVITA:'.length).trim()
+        : 'Attività non completata. Riprova tra poco.';
+      return err(messaggio, erroreAttivita.message.startsWith('ATTIVITA:') ? 400 : 500);
     }
-
-    const { data: movs } = await db.from('movimenti_crediti').select('importo').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id);
-    const saldo = (movs ?? []).reduce((t, m) => t + Number(m.importo), 0);
-    if (saldo < costo) return err('Crediti insufficienti per questa attività.');
-
-    const { data: fantino } = await db.from('fantini').select('livello_base, nome, soprannome').eq('id', b.fantino_id).single();
-    const { data: rel } = await db.from('relazioni_contrada_fantino').select('livello').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).eq('fantino_id', b.fantino_id).single();
-    const livelloAttuale = rel?.livello ?? fantino?.livello_base ?? 0;
-
-    const costoMin = Number(tipo.costo_minimo);
-    const costoMax = Number(tipo.costo_massimo);
-    const ampiezza = costoMax - costoMin;
-    const proporzione = ampiezza > 0 ? (costo - costoMin) / ampiezza : 1;
-    const probabilita = 0.25 + 0.65 * proporzione;
-    const successo = Math.random() < probabilita;
-    const delta = successo ? Math.max(1, Math.round(tipo.variazione_massima * proporzione)) : 0;
-    const nuovoLivello = Math.max(0, Math.min(100, livelloAttuale + delta));
-
-    await Promise.all([
-      db.from('movimenti_crediti').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, importo: -costo, motivo: tipo.nome, tipo: 'spesa_attivita' }),
-      db.from('relazioni_contrada_fantino').upsert(
-        { partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, livello: nuovoLivello },
-        { onConflict: 'partita_id,contrada_id,fantino_id' }
-      ),
-      db.from('attivita_svolte').insert({ partita_id: b.partita_id, contrada_id: me.contrada_id, fantino_id: b.fantino_id, tipo_attivita_id: b.tipo_attivita_id }),
-    ]);
+    if (!risultato) return err('Attività non completata.', 500);
 
     const { data: compagni } = await db.from('membri').select('utente_id').eq('partita_id', b.partita_id).eq('contrada_id', me.contrada_id).neq('utente_id', uid);
     const nome = await nomeUtente(uid);
-    const nomeFantino = fantino?.soprannome ?? fantino?.nome ?? 'un fantino';
+    const nomeFantino = risultato.fantino_nome || 'un fantino';
+    const nomeAttivita = risultato.tipo_nome as string;
+    const successo = Boolean(risultato.successo);
+    const delta = Number(risultato.delta);
     const esito = successo ? `rapporto +${delta}` : 'nessun cambiamento';
     await notifica(
       b.partita_id,
       (compagni ?? []).map((c) => c.utente_id),
       'iniziativa',
       `${nome} ha fatto un'iniziativa`,
-      `${tipo.nome} con ${nomeFantino}, ${costo} crediti: ${esito}.`
+      `${nomeAttivita} con ${nomeFantino}, ${costo} crediti: ${esito}.`
     );
-    await evento(b.partita_id, me.contrada_id, 'iniziativa', `${nome}: ${tipo.nome} con ${nomeFantino}`, `${costo} crediti · ${esito}`);
+    await evento(b.partita_id, me.contrada_id, 'iniziativa', `${nome}: ${nomeAttivita} con ${nomeFantino}`, `${costo} crediti · ${esito}`);
 
     return NextResponse.json({ ok: true, successo, delta });
   }
@@ -185,7 +176,23 @@ export async function POST(req: NextRequest) {
   }
 
   if (b.azione === 'elimina') {
-    await db.from('partite').delete().eq('id', b.partita_id);
+    const { data: partita, error: errorePartita } = await db
+      .from('partite')
+      .select('sindaco_id')
+      .eq('id', b.partita_id)
+      .single();
+    if (errorePartita || !partita) return err('Partita non trovata.', 404);
+    if (partita.sindaco_id !== uid) return err('Solo il Sindaco della partita può eliminarla.', 403);
+
+    const { error: erroreEliminazione } = await db
+      .from('partite')
+      .delete()
+      .eq('id', b.partita_id)
+      .eq('sindaco_id', uid);
+    if (erroreEliminazione) {
+      console.error('Eliminazione partita:', erroreEliminazione.message);
+      return err('Eliminazione non riuscita.', 500);
+    }
     return NextResponse.json({ ok: true });
   }
 

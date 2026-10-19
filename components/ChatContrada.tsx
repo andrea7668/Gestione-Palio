@@ -52,7 +52,10 @@ export default function ChatContrada({ partitaId, contradaId, mioId }: { partita
     setInvio(false);
     if (!r.ok) { setErrore(r.error); return; }
     setTesto('');
-    carica();
+    const messaggio = r.messaggio as Messaggio | undefined;
+    if (messaggio) {
+      setMessaggi((prev) => (prev.some((x) => x.id === messaggio.id) ? prev : [...prev, messaggio]));
+    }
   }
 
   return (
