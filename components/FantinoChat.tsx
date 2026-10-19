@@ -18,17 +18,23 @@ interface Props {
   fantinoSoprannome?: string;
   fantinoFoto?: string | null;
   livelloIniziale: number;
+  messaggioIniziale?: string | null;
+  onMessaggioInizialeUsato?: () => void;
 }
 
 const ora = (iso: string) => new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-export default function FantinoChat({ partitaId, contradaId, fantinoId, fantinoNome, fantinoSoprannome, fantinoFoto, livelloIniziale }: Props) {
+export default function FantinoChat({
+  partitaId, contradaId, fantinoId, fantinoNome, fantinoSoprannome, fantinoFoto, livelloIniziale,
+  messaggioIniziale, onMessaggioInizialeUsato,
+}: Props) {
   const { fase } = useFase();
   const inTratta = !!fase && FASI_CON_ACCORDI.includes(fase);
   const [messaggi, setMessaggi] = useState<Messaggio[]>([]);
   const [accordi, setAccordi] = useState<Accordo[]>([]);
   const [livello, setLivello] = useState(livelloIniziale);
   const [testo, setTesto] = useState('');
+  const [cronologiaCaricata, setCronologiaCaricata] = useState(false);
   const [caricando, setCaricando] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
   const fine = useRef<HTMLDivElement>(null);
@@ -64,7 +70,10 @@ export default function FantinoChat({ partitaId, contradaId, fantinoId, fantinoN
       .order('creato_il', { ascending: true })
       .order('id', { ascending: true })
       .limit(200)
-      .then(({ data }) => { if (data) setMessaggi(data as Messaggio[]); });
+      .then(({ data }) => {
+        if (data) setMessaggi(data as Messaggio[]);
+        setCronologiaCaricata(true);
+      });
     caricaAccordi();
     caricaLivello();
   }, [partitaId, contradaId, fantinoId, caricaAccordi, caricaLivello]);
@@ -73,8 +82,8 @@ export default function FantinoChat({ partitaId, contradaId, fantinoId, fantinoN
     fine.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messaggi, caricando]);
 
-  async function invia() {
-    const messaggio = testo.trim();
+  const invia = useCallback(async (testoDaInviare = testo) => {
+    const messaggio = testoDaInviare.trim();
     if (!messaggio || caricando) return;
 
     setMessaggi((prev) => [...prev, { autore: 'utente', contenuto: messaggio, creato_il: new Date().toISOString() }]);
@@ -108,7 +117,15 @@ export default function FantinoChat({ partitaId, contradaId, fantinoId, fantinoN
     } finally {
       setCaricando(false);
     }
-  }
+  }, [caricaAccordi, caricaLivello, caricando, fantinoId, partitaId, testo]);
+
+  const messaggioInizialeAvviato = useRef(false);
+  useEffect(() => {
+    if (!cronologiaCaricata || !messaggioIniziale || messaggioInizialeAvviato.current) return;
+    messaggioInizialeAvviato.current = true;
+    onMessaggioInizialeUsato?.();
+    void invia(messaggioIniziale);
+  }, [cronologiaCaricata, invia, messaggioIniziale, onMessaggioInizialeUsato]);
 
   const accordiOrdinati = [...accordi].sort((a, b) => ordineAccordo(b.tipo) - ordineAccordo(a.tipo));
 

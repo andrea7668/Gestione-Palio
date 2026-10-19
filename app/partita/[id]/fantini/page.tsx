@@ -48,6 +48,7 @@ export default function PaginaFantini() {
   const [caricato, setCaricato] = useState(false);
   const [chatAperta, setChatAperta] = useState(false);
   const [fantinoChat, setFantinoChat] = useState<Fantino | null>(null);
+  const [messaggioInizialeChat, setMessaggioInizialeChat] = useState<string | null>(null);
 
   const carica = useCallback(async () => {
     const { data: s } = await supabase.auth.getSession();
@@ -108,6 +109,14 @@ export default function PaginaFantini() {
     return { successo: r.successo as boolean, delta: r.delta as number };
   }
 
+  function apriChatDopoIniziativa(fantinoId: string) {
+    const fantino = fantini.find((f) => f.id === fantinoId);
+    if (!fantino || !contradaId) return;
+    setFantinoChat(fantino);
+    setMessaggioInizialeChat('Grazie per l\'iniziativa e per l\'attenzione che. hai voluto dedicarmi. Spero che il nostro rapporto possa crescere ancora di più.');
+    setChatAperta(true);
+  }
+
   async function faiContinuita(fantinoId: string) {
     const r = await chiama({ azione: 'colloquio_continuita', partita_id: id, fantino_id: fantinoId });
     if (!r.ok) { alert(r.error); return; }
@@ -118,6 +127,7 @@ export default function PaginaFantini() {
   function chiudiChat() {
     setChatAperta(false);
     setFantinoChat(null);
+    setMessaggioInizialeChat(null);
     carica();
   }
 
@@ -159,6 +169,7 @@ export default function PaginaFantini() {
               accordo={accordoPiuForte(accordiPer[f.id])}
               tipiAttivita={tipiAttivita}
               onFaiAttivita={(tipoId, costo) => faiAttivita(f.id, tipoId, costo)}
+              onApriChat={() => apriChatDopoIniziativa(f.id)}
               onContinuita={() => faiContinuita(f.id)}
             />
           );
@@ -175,7 +186,7 @@ export default function PaginaFantini() {
             <button className="chat-overlay-chiudi" onClick={chiudiChat} aria-label="Chiudi">×</button>
             {fantinoChat ? (
               <>
-                <button className="chat-overlay-indietro" onClick={() => { setFantinoChat(null); carica(); }}>← Fantini</button>
+                <button className="chat-overlay-indietro" onClick={() => { setFantinoChat(null); setMessaggioInizialeChat(null); carica(); }}>← Fantini</button>
                 <FantinoChat
                   partitaId={id}
                   contradaId={contradaId}
@@ -184,6 +195,8 @@ export default function PaginaFantini() {
                   fantinoSoprannome={fantinoChat.soprannome ?? undefined}
                   fantinoFoto={fantinoChat.foto}
                   livelloIniziale={rapportoDi(fantinoChat)}
+                  messaggioIniziale={messaggioInizialeChat}
+                  onMessaggioInizialeUsato={() => setMessaggioInizialeChat(null)}
                 />
               </>
             ) : (
@@ -201,7 +214,7 @@ export default function PaginaFantini() {
                 {conChat.map((f) => {
                   const acc = accordoPiuForte(accordiPer[f.id]);
                   return (
-                    <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => setFantinoChat(f)}>
+                    <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => { setMessaggioInizialeChat(null); setFantinoChat(f); }}>
                       {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
                     </button>
                   );
@@ -216,11 +229,12 @@ export default function PaginaFantini() {
 }
 
 function SchedaFantino({
-  f, livello, perc, nomeContrada, soloLettura, accordo, tipiAttivita, onFaiAttivita, onContinuita,
+  f, livello, perc, nomeContrada, soloLettura, accordo, tipiAttivita, onFaiAttivita, onApriChat, onContinuita,
 }: {
   f: Fantino; livello: number; perc: number | null; nomeContrada: string; soloLettura: boolean; accordo: string | null;
   tipiAttivita: TipoAttivita[];
   onFaiAttivita: (tipoId: string, costo: number) => Promise<{ successo: boolean; delta: number } | undefined>;
+  onApriChat: () => void;
   onContinuita: () => void;
 }) {
   const [pannelloAperto, setPannelloAperto] = useState(false);
@@ -249,6 +263,7 @@ function SchedaFantino({
     setInvio(false);
     if (esito) {
       setRisultato(esito.successo ? `Il fantino ha gradito: rapporto +${esito.delta}.` : 'Questa volta non è cambiato nulla.');
+      onApriChat();
     }
     setPannelloAperto(false);
     setTipoScelto('');
