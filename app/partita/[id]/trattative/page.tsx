@@ -16,10 +16,13 @@ type Accordo = {
   fantini: { nome: string; soprannome: string | null } | null;
   contrade: { nome: string } | null;
 };
-type MessaggioTrattativa = { id: number; titolo: string; testo: string | null; creato_il: string };
 
-const formatoData = (iso: string) =>
-  new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const formatoData = (iso: string) => {
+  const data = new Date(iso);
+  const giorno = data.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const ora = data.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  return `${giorno} · ${ora}`;
+};
 
 export default function CentroTrattative() {
   const { id } = useParams<{ id: string }>();
@@ -27,7 +30,6 @@ export default function CentroTrattative() {
   const { fase } = useFase();
   const [eSindaco, setESindaco] = useState(false);
   const [accordi, setAccordi] = useState<Accordo[]>([]);
-  const [messaggi, setMessaggi] = useState<MessaggioTrattativa[]>([]);
   const [caricato, setCaricato] = useState(false);
 
   const carica = useCallback(async () => {
@@ -46,7 +48,6 @@ export default function CentroTrattative() {
 
     if (!sindaco && !m.contrada_id) {
       setAccordi([]);
-      setMessaggi([]);
       setCaricato(true);
       return;
     }
@@ -57,18 +58,8 @@ export default function CentroTrattative() {
       .eq('partita_id', id);
     if (!sindaco && m.contrada_id) richiesta = richiesta.eq('contrada_id', m.contrada_id);
 
-    const [{ data }, { data: eventi }] = await Promise.all([
-      richiesta.order('aggiornato_il', { ascending: false }),
-      supabase
-        .from('eventi')
-        .select('id, titolo, testo, creato_il')
-        .eq('partita_id', id)
-        .eq('tipo', 'accordo')
-        .order('creato_il', { ascending: false })
-        .limit(20),
-    ]);
+    const { data } = await richiesta.order('aggiornato_il', { ascending: false });
     setAccordi((data ?? []) as unknown as Accordo[]);
-    setMessaggi((eventi ?? []) as MessaggioTrattativa[]);
     setCaricato(true);
   }, [id, router]);
 
@@ -78,9 +69,6 @@ export default function CentroTrattative() {
       .channel(`trattative-${id}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'accordi_fantini', filter: `partita_id=eq.${id}`,
-      }, () => { void carica(); })
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'eventi', filter: `partita_id=eq.${id}`,
       }, () => { void carica(); })
       .subscribe();
     return () => { void supabase.removeChannel(canale); };
@@ -114,47 +102,25 @@ export default function CentroTrattative() {
 
       <section className="carta">
         <h3 className="dash-titolo">{eSindaco ? 'Accordi dei fantini' : 'Accordi ottenuti'}</h3>
-        <p className="aiuto">
-          Un accordo è un impegno di parola, non una certezza: il fantino potrebbe montare per un&apos;altra Contrada.
-          Si ottiene parlando con lui nella pagina Fantini.
-        </p>
+        <p className="aiuto">Impegni verbali raggiunti dai fantini. Non garantiscono la monta.</p>
         {accordi.length === 0 && <p className="aiuto">Nessun accordo ancora.</p>}
-        <div className="pr-lista">
+        <div className="tratta-accordi-lista">
           {accordi.map((a) => (
-            <div key={a.id} className="pr-riga">
-              <div>
-                <p className="pr-nome">
-                  {a.fantini?.nome}{a.fantini?.soprannome ? ` «${a.fantini.soprannome}»` : ''}
-                  <span className="badge-accordo" style={{ marginLeft: 8 }}>{nomeAccordo(a.tipo)}</span>
-                </p>
-                <p className="pr-sotto">{a.testo}</p>
-                {eSindaco && <p className="pr-sotto">Contrada {a.contrade?.nome}</p>}
+            <article key={a.id} className="tratta-accordo-riga">
+              <div className="tratta-accordo-testa">
+                <div className="tratta-accordo-identita">
+                  <strong className="tratta-accordo-nome">
+                    {a.fantini?.nome}{a.fantini?.soprannome ? ` «${a.fantini.soprannome}»` : ''}
+                  </strong>
+                  <span className="badge-accordo">{nomeAccordo(a.tipo)}</span>
+                </div>
+                <time className="tratta-accordo-data">{formatoData(a.aggiornato_il)}</time>
               </div>
-              <span className="pr-sotto">{formatoData(a.aggiornato_il)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="carta">
-        <h3 className="dash-titolo">Messaggi delle trattative</h3>
-        {messaggi.length === 0 && <p className="aiuto">Gli accordi raggiunti appariranno qui automaticamente.</p>}
-        <div className="trattativa-messaggi">
-          {messaggi.map((m) => (
-            <article className="trattativa-messaggio" key={m.id}>
-              <div className="trattativa-messaggio-testa">
-                <strong>{m.titolo}</strong>
-                <time className="pr-sotto">{formatoData(m.creato_il)}</time>
-              </div>
-              {m.testo && <p>{m.testo}</p>}
+              {eSindaco && <p className="tratta-accordo-contrada">Contrada {a.contrade?.nome}</p>}
+              <p className="tratta-accordo-testo">{a.testo}</p>
             </article>
           ))}
         </div>
-      </section>
-
-      <section className="carta">
-        <h3 className="dash-titolo">Contrattazione</h3>
-        <p className="aiuto">In arrivo: dipende dalle regole della contrattazione, che stiamo ancora definendo.</p>
       </section>
     </main>
   );

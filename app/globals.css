@@ -293,18 +293,22 @@ select.campo:hover{border-color:var(--vino)}
 .msg-ora{display:block;font-size:11px;opacity:.7;margin-top:4px;text-align:right}
 
 .tratta-pannello{display:flex;flex-direction:column;gap:12px}
-.trattativa-messaggi{display:flex;flex-direction:column;gap:10px}
-.trattativa-messaggio{border:1px solid var(--linea);border-left:4px solid var(--oro);border-radius:8px;padding:11px 13px;background:#fff}
-.trattativa-messaggio-testa{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.trattativa-messaggio-testa strong{color:var(--vino);font-size:13px}
-.trattativa-messaggio p{margin:6px 0 0;font-size:14px;line-height:1.45}
+.tratta-accordi-lista{display:flex;flex-direction:column;gap:10px}
+.tratta-accordo-riga{border:1px solid var(--linea);border-left:4px solid var(--oro);border-radius:8px;padding:14px 16px;background:#fbf9f5}
+.tratta-accordo-testa{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tratta-accordo-identita{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0}
+.tratta-accordo-nome{font-size:15px;font-weight:600}
+.tratta-accordo-data,.tratta-accordo-contrada{color:var(--tenue);font-size:13px;white-space:nowrap}
+.tratta-accordo-contrada{margin:5px 0 0}
+.tratta-accordo-testo{margin:10px 0 0;font-size:14px;line-height:1.45}
+@media(max-width:560px){.tratta-accordo-testa{align-items:flex-start;flex-direction:column;gap:8px}}
 .tratta-info{border:1px solid #d9a9b0;background:#fbf0f1;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
 .tratta-aggiorna{align-self:flex-start;padding:8px 18px}
 .tratta-legenda{font-size:13px;color:var(--tenue);line-height:1.5}
 .tratta-legenda p{margin:0}
 .tratta-legenda ul{margin:8px 0 0;padding-left:18px}
 .tratta-legenda li{margin-bottom:4px}
-.badge-accordo{background:var(--vino);color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.badge-accordo{display:inline-block;background:var(--vino);color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
 .menu-fase{font-size:12px;opacity:.85;margin:2px 0 0;font-weight:600}
 .scheda-fantino-id{display:flex;align-items:center;gap:12px;min-width:0}
 .avatar-foto{object-position:center 15%}
