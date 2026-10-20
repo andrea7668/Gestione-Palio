@@ -17,7 +17,7 @@ const estensioniFoto = ['PNG', 'png', 'jpg', 'JPG', 'jpeg'] as const;
 const voci = [
   { nome: 'Dashboard Contrada', href: '', icona: '⌂', attiva: true },
   { nome: 'Centro trattative', href: 'trattative', icona: '⚖', attiva: false },
-  { nome: 'Cavalli', href: 'cavalli', icona: '🏆', attiva: false },
+  { nome: 'Cavalli', href: 'cavalli', icona: '🏆', attiva: true },
   { nome: 'Fantini', href: 'fantini', icona: '⛑', attiva: true },
   { nome: 'Museo della Contrada', href: 'museo', icona: '🏛', attiva: false },
   { nome: "Archivio e Albo d'Oro", href: 'archivio', icona: '📜', attiva: false },

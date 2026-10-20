@@ -540,6 +540,17 @@ CREATE TABLE public.fantini (
     mossa_rincorsa integer
 );
 
+--
+-- Name: cavalli; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cavalli (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nome text NOT NULL,
+    overall integer DEFAULT 0 NOT NULL,
+    attivo boolean DEFAULT true NOT NULL,
+    creato_il timestamp with time zone DEFAULT now() NOT NULL
+);
 
 --
 -- Name: membri; Type: TABLE; Schema: public; Owner: -
@@ -772,6 +783,19 @@ ALTER TABLE ONLY public.eventi
 ALTER TABLE ONLY public.fantini
     ADD CONSTRAINT fantini_pkey PRIMARY KEY (id);
 
+--
+-- Name: cavalli cavalli_nome_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cavalli
+    ADD CONSTRAINT cavalli_nome_key UNIQUE (nome);
+
+--
+-- Name: cavalli cavalli_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cavalli
+    ADD CONSTRAINT cavalli_pkey PRIMARY KEY (id);
 
 --
 -- Name: membri membri_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -1648,6 +1672,12 @@ GRANT ALL ON SEQUENCE public.eventi_id_seq TO service_role;
 GRANT ALL ON TABLE public.fantini TO service_role;
 GRANT SELECT ON TABLE public.fantini TO authenticated;
 
+--
+-- Name: TABLE cavalli; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.cavalli TO service_role;
+GRANT SELECT ON TABLE public.cavalli TO authenticated;
 
 --
 -- Name: TABLE membri; Type: ACL; Schema: public; Owner: -
