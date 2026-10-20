@@ -49,6 +49,36 @@ function chiaveAccordo(s: string): string | null {
   return k === 'interesse' || k === 'intesa' || k === 'priorita' ? k : null;
 }
 
+function accordoConfermatoSenzaTag(
+  richiesta: string,
+  risposta: string,
+  ammessi: typeof TIPI_ACCORDO[number][],
+): { tipo: string; testo: string } | null {
+  const normalizza = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const rispostaNormale = normalizza(risposta);
+  const testoCompleto = normalizza(`${richiesta}\n${risposta}`);
+  const rifiuto = /\b(?:non (?:accetto|confermo|posso|voglio|riesco|mi impegno|mi sento|ti prometto|me la sento|ci sto|so se)|non sono (?:disposto|d'accordo|sicuro)|non se ne parla|nessun accordo|niente accordo|non faccio promesse)\b/;
+  const conferma = /\b(?:si|certo|ok|va bene|volentieri|accetto|confermo|ci sto|d'accordo|mi impegno|ti prometto|hai la mia parola|puoi contare su di me|conta su di me|ti cerchero io|vi cerchero io|vi daro la precedenza|sarai la mia priorita)\b/;
+  if (rifiuto.test(rispostaNormale) || !conferma.test(rispostaNormale)) return null;
+
+  const paroleTipo: Record<string, string[]> = {
+    interesse: ['interesse', 'interessato', 'risentirci', 'risentire'],
+    intesa: ['intesa', 'condizioni'],
+    priorita: ['priorita', 'precedenza', 'corsia preferenziale'],
+    impegno: ['impegno', 'impegnarmi', 'promessa', 'prometto', 'parola'],
+  };
+  const tipiNominati = ammessi.filter((tipo) =>
+    paroleTipo[tipo.chiave].some((parola) => testoCompleto.includes(parola))
+  );
+  if (tipiNominati.length !== 1) return null;
+
+  const tipo = tipiNominati[0];
+  return {
+    tipo: tipo.chiave,
+    testo: `Il fantino conferma l'accordo di ${tipo.nome.toLowerCase()}.`,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const { partita_id, fantino_id, messaggio, access_token, messaggio_autore } = await req.json();
   const autoreMessaggio = messaggio_autore === 'fantino' ? 'fantino' : 'utente';
@@ -170,7 +200,7 @@ export async function POST(req: NextRequest) {
 
   const rigaTag =
     ammessi.length > 0
-      ? "\n- Se in questa risposta concedi o confermi un accordo, aggiungi alla fine, su una riga a parte, il tag [[ACCORDO:chiave|riassunto]], dove riassunto è una frase breve (massimo 100 caratteri) in terza persona che descrive l'accordo, per esempio [[ACCORDO:priorita|Il fantino conferma la priorità già accordata.]]. Se non c'è nessun accordo nuovo da registrare, non scrivere il tag."
+      ? "\n- È obbligatorio: se in questa risposta concedi o confermi un accordo, aggiungi alla fine, su una riga a parte, il tag [[ACCORDO:chiave|riassunto]], dove riassunto è una frase breve (massimo 100 caratteri) in terza persona che descrive l'accordo, per esempio [[ACCORDO:priorita|Il fantino conferma la priorità già accordata.]]. Non omettere il tag dopo un sì esplicito. Se non c'è nessun accordo nuovo da registrare, non scrivere il tag."
       : '';
 
   const sezioneTratta = faseAccordi
@@ -227,7 +257,10 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
     return NextResponse.json({ error: 'Il fantino non riesce a rispondere, riprova tra poco.' }, { status: 502 });
   }
 
-  const grezzo: string = esito.dati.content?.[0]?.text ?? 'Non ho capito, ripeti pure.';
+  const grezzo: string = esito.dati.content
+    ?.filter((blocco: { type?: string }) => blocco.type === 'text')
+    .map((blocco: { text?: string }) => blocco.text ?? '')
+    .join('\n') || 'Non ho capito, ripeti pure.';
 
   let delta = 0;
   if (rapportoDiretto) {
@@ -243,6 +276,17 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
       const info = TIPI_ACCORDO.find((t) => t.chiave === chiave);
       const riassunto = mt[2].trim().slice(0, 140);
       if (info && livello >= info.soglia && riassunto) nuoviAccordi.set(info.chiave, riassunto);
+    }
+
+    if (nuoviAccordi.size === 0) {
+      const richiesteRecenti = [...cronologia.filter((m) => m.autore === 'utente').map((m) => m.contenuto), messaggio].slice(-8);
+      const richiestaAccordo = richiesteRecenti.reverse().find((testo) =>
+        /interesse|intesa|condizioni|priorit[aà]|precedenza|corsia preferenziale|impegno|promess|parola/i.test(testo)
+      ) ?? messaggio;
+      const confermato = accordoConfermatoSenzaTag(richiestaAccordo, grezzo.replace(/\[\[[\s\S]*?\]\]/g, ''), ammessi);
+      if (confermato && livello >= (TIPI_ACCORDO.find((t) => t.chiave === confermato.tipo)?.soglia ?? Infinity)) {
+        nuoviAccordi.set(confermato.tipo, confermato.testo);
+      }
     }
   }
 
@@ -261,7 +305,7 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
     );
   }
 
-  let registrati = 0;
+  const accordiRegistrati: { id: number; tipo: string; testo: string; aggiornato_il: string }[] = [];
   if (nuoviAccordi.size > 0) {
     const nomeFantino = fantino.soprannome ?? fantino.nome;
     const { data: compagni } = await supabase
@@ -275,22 +319,23 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
       const prima = accordiEsistenti.find((a) => a.tipo === tipo);
       if (prima && prima.testo === riassunto) continue;
 
-      const { error: erroreAccordo } = await supabase.from('accordi_fantini').upsert(
+      const aggiornatoIl = new Date().toISOString();
+      const { data: accordoSalvato, error: erroreAccordo } = await supabase.from('accordi_fantini').upsert(
         {
           partita_id,
           contrada_id: membro.contrada_id,
           fantino_id,
           tipo,
           testo: riassunto,
-          aggiornato_il: new Date().toISOString(),
+          aggiornato_il: aggiornatoIl,
         },
         { onConflict: 'partita_id,contrada_id,fantino_id,tipo' }
-      );
-      if (erroreAccordo) {
-        console.error('Accordo non registrato:', erroreAccordo.message);
+      ).select('id').single();
+      if (erroreAccordo || !accordoSalvato) {
+        console.error('Accordo non registrato:', erroreAccordo?.message ?? 'nessuna riga restituita');
         continue;
       }
-      registrati += 1;
+      accordiRegistrati.push({ id: accordoSalvato.id, tipo, testo: riassunto, aggiornato_il: aggiornatoIl });
 
       const nomeTipo = TIPI_ACCORDO.find((t) => t.chiave === tipo)?.nome ?? tipo;
 
@@ -316,5 +361,5 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
     }
   }
 
-  return NextResponse.json({ risposta: testoRisposta, accordi: registrati > 0 });
+  return NextResponse.json({ risposta: testoRisposta, accordi: accordiRegistrati });
 }

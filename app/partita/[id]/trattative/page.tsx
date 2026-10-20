@@ -16,6 +16,7 @@ type Accordo = {
   fantini: { nome: string; soprannome: string | null } | null;
   contrade: { nome: string } | null;
 };
+type MessaggioTrattativa = { id: number; titolo: string; testo: string | null; creato_il: string };
 
 const formatoData = (iso: string) =>
   new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -26,6 +27,7 @@ export default function CentroTrattative() {
   const { fase } = useFase();
   const [eSindaco, setESindaco] = useState(false);
   const [accordi, setAccordi] = useState<Accordo[]>([]);
+  const [messaggi, setMessaggi] = useState<MessaggioTrattativa[]>([]);
   const [caricato, setCaricato] = useState(false);
 
   const carica = useCallback(async () => {
@@ -44,6 +46,7 @@ export default function CentroTrattative() {
 
     if (!sindaco && !m.contrada_id) {
       setAccordi([]);
+      setMessaggi([]);
       setCaricato(true);
       return;
     }
@@ -54,12 +57,34 @@ export default function CentroTrattative() {
       .eq('partita_id', id);
     if (!sindaco && m.contrada_id) richiesta = richiesta.eq('contrada_id', m.contrada_id);
 
-    const { data } = await richiesta.order('aggiornato_il', { ascending: false });
+    const [{ data }, { data: eventi }] = await Promise.all([
+      richiesta.order('aggiornato_il', { ascending: false }),
+      supabase
+        .from('eventi')
+        .select('id, titolo, testo, creato_il')
+        .eq('partita_id', id)
+        .eq('tipo', 'accordo')
+        .order('creato_il', { ascending: false })
+        .limit(20),
+    ]);
     setAccordi((data ?? []) as unknown as Accordo[]);
+    setMessaggi((eventi ?? []) as MessaggioTrattativa[]);
     setCaricato(true);
   }, [id, router]);
 
   useEffect(() => { carica(); }, [carica]);
+  useEffect(() => {
+    const canale = supabase
+      .channel(`trattative-${id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'accordi_fantini', filter: `partita_id=eq.${id}`,
+      }, () => { void carica(); })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'eventi', filter: `partita_id=eq.${id}`,
+      }, () => { void carica(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(canale); };
+  }, [carica, id]);
   useAggiorna(carica, 20000);
 
   if (!caricato) return null;
@@ -107,6 +132,22 @@ export default function CentroTrattative() {
               </div>
               <span className="pr-sotto">{formatoData(a.aggiornato_il)}</span>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="carta">
+        <h3 className="dash-titolo">Messaggi delle trattative</h3>
+        {messaggi.length === 0 && <p className="aiuto">Gli accordi raggiunti appariranno qui automaticamente.</p>}
+        <div className="trattativa-messaggi">
+          {messaggi.map((m) => (
+            <article className="trattativa-messaggio" key={m.id}>
+              <div className="trattativa-messaggio-testa">
+                <strong>{m.titolo}</strong>
+                <time className="pr-sotto">{formatoData(m.creato_il)}</time>
+              </div>
+              {m.testo && <p>{m.testo}</p>}
+            </article>
           ))}
         </div>
       </section>

@@ -46,6 +46,8 @@ label{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:14px}
 .msg{max-width:82%;padding:10px 14px;line-height:1.45;white-space:pre-wrap}
 .msg-utente{align-self:flex-end;background:var(--vino);color:#fff;border-radius:16px 16px 4px 16px}
 .msg-fantino{align-self:flex-start;background:#efe9df;border-radius:16px 16px 16px 4px}
+.chat-accordo-banner{display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-top:1px solid #c7dfcc;background:#edf6ef;color:#1f5a33;font-size:13px;line-height:1.4}
+.chat-accordo-banner strong{font-size:12px;text-transform:uppercase;letter-spacing:.03em}
 .scrive{align-self:flex-start;display:flex;gap:5px;padding:12px 14px;background:#efe9df;border-radius:16px 16px 16px 4px}
 .scrive i{width:7px;height:7px;border-radius:50%;background:var(--tenue);animation:salto 1s infinite}
 .scrive i:nth-child(2){animation-delay:.15s}.scrive i:nth-child(3){animation-delay:.3s}
@@ -291,6 +293,11 @@ select.campo:hover{border-color:var(--vino)}
 .msg-ora{display:block;font-size:11px;opacity:.7;margin-top:4px;text-align:right}
 
 .tratta-pannello{display:flex;flex-direction:column;gap:12px}
+.trattativa-messaggi{display:flex;flex-direction:column;gap:10px}
+.trattativa-messaggio{border:1px solid var(--linea);border-left:4px solid var(--oro);border-radius:8px;padding:11px 13px;background:#fff}
+.trattativa-messaggio-testa{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.trattativa-messaggio-testa strong{color:var(--vino);font-size:13px}
+.trattativa-messaggio p{margin:6px 0 0;font-size:14px;line-height:1.45}
 .tratta-info{border:1px solid #d9a9b0;background:#fbf0f1;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
 .tratta-aggiorna{align-self:flex-start;padding:8px 18px}
 .accordo-card{border:1px solid #9cc7a8;background:#eaf4ec;border-radius:10px;padding:12px 14px}

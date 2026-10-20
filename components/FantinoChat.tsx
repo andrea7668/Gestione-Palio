@@ -5,10 +5,11 @@ import { supabase } from '../lib/supabase';
 import { useFase } from '../lib/contesto-fase';
 import { FASI_CON_ACCORDI } from '../lib/fasi';
 import { TIPI_ACCORDO, nomeAccordo, ordineAccordo, etichettaRapporto } from '../lib/accordi';
+import { useAggiorna } from '../lib/useAggiorna';
 import FotoFantino from './FotoFantino';
 
 type Messaggio = { autore: 'utente' | 'fantino'; contenuto: string; creato_il: string };
-type Accordo = { id: number; tipo: string; testo: string };
+type Accordo = { id: number; tipo: string; testo: string; aggiornato_il: string };
 
 function testoVisibile(contenuto: string): string {
   return contenuto.replace(/\[\[\s*(?:ACCORDO|DELTA)\s*:[\s\S]*?\]\]/gi, '').trim();
@@ -46,12 +47,22 @@ export default function FantinoChat({
   const caricaAccordi = useCallback(async () => {
     const { data } = await supabase
       .from('accordi_fantini')
-      .select('id, tipo, testo')
+      .select('id, tipo, testo, aggiornato_il')
       .eq('partita_id', partitaId)
       .eq('contrada_id', contradaId)
       .eq('fantino_id', fantinoId);
     setAccordi((data ?? []) as Accordo[]);
   }, [partitaId, contradaId, fantinoId]);
+
+  useEffect(() => {
+    const canale = supabase
+      .channel(`accordi-chat-${partitaId}-${contradaId}-${fantinoId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'accordi_fantini', filter: `contrada_id=eq.${contradaId}`,
+      }, () => { void caricaAccordi(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(canale); };
+  }, [caricaAccordi, contradaId, fantinoId, partitaId]);
 
   const caricaLivello = useCallback(async () => {
     const { data } = await supabase
@@ -119,8 +130,14 @@ export default function FantinoChat({
         setErrore(dati.error ?? 'Qualcosa è andato storto, riprova.');
       } else {
         setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: testoVisibile(dati.risposta), creato_il: new Date().toISOString() }]);
-        caricaAccordi();
-        caricaLivello();
+        const nuoviAccordi = Array.isArray(dati.accordi) ? dati.accordi as Accordo[] : [];
+        if (nuoviAccordi.length > 0) {
+          setAccordi((precedenti) => [
+            ...precedenti.filter((a) => !nuoviAccordi.some((nuovo) => nuovo.tipo === a.tipo)),
+            ...nuoviAccordi,
+          ]);
+        }
+        await Promise.all([caricaAccordi(), caricaLivello()]);
       }
     } catch {
       setErrore('Connessione assente: controlla la rete e riprova.');
@@ -137,7 +154,12 @@ export default function FantinoChat({
     void invia(messaggioIniziale, 'fantino');
   }, [cronologiaCaricata, invia, messaggioIniziale, onMessaggioInizialeUsato]);
 
-  const accordiOrdinati = [...accordi].sort((a, b) => ordineAccordo(b.tipo) - ordineAccordo(a.tipo));
+  useAggiorna(caricaAccordi, 20000);
+
+  const accordiOrdinati = [...accordi].sort((a, b) =>
+    new Date(b.aggiornato_il).getTime() - new Date(a.aggiornato_il).getTime() || ordineAccordo(b.tipo) - ordineAccordo(a.tipo)
+  );
+  const accordoInEvidenza = accordiOrdinati[0];
 
   return (
     <div className="chat-wrap">
@@ -185,6 +207,12 @@ export default function FantinoChat({
           />
           <button className="bottone" type="submit" disabled={caricando}>Invia</button>
         </form>
+        {inTratta && accordoInEvidenza && (
+          <div className="chat-accordo-banner" role="status" aria-live="polite">
+            <strong>Accordo di parola · {nomeAccordo(accordoInEvidenza.tipo)}</strong>
+            <span>{accordoInEvidenza.testo}</span>
+          </div>
+        )}
       </section>
 
       {inTratta && (
