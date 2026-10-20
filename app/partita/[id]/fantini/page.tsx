@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../../lib/supabase';
 import { INFO_FASI } from '../../../../lib/fasi';
@@ -49,8 +49,10 @@ export default function PaginaFantini() {
   const [chatAperta, setChatAperta] = useState(false);
   const [fantinoChat, setFantinoChat] = useState<Fantino | null>(null);
   const [messaggioInizialeChat, setMessaggioInizialeChat] = useState<string | null>(null);
+  const caricamentoAttuale = useRef(0);
 
   const carica = useCallback(async () => {
+    const numeroCaricamento = ++caricamentoAttuale.current;
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) return router.replace('/accedi');
     const { data: m } = await supabase
@@ -65,9 +67,15 @@ export default function PaginaFantini() {
     setNomeContrada((m.contrade as unknown as { nome: string } | null)?.nome ?? '');
 
     if (m.contrada_id) {
-      const [{ data: f }, { data: rel }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }] = await Promise.all([
+      const relazioniInBackground = supabase
+        .from('relazioni_contrada_fantino')
+        .select('fantino_id, livello')
+        .eq('partita_id', id)
+        .eq('contrada_id', m.contrada_id)
+        .then((risultato) => risultato);
+
+      const [{ data: f }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }] = await Promise.all([
         supabase.from('fantini').select(COLONNE_FANTINO).order('nome'),
-        supabase.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('tipi_attivita').select(COLONNE_ATTIVITA).order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('saldi_contrade').select('saldo').eq('partita_id', id).eq('contrada_id', m.contrada_id).maybeSingle(),
@@ -82,9 +90,6 @@ export default function PaginaFantini() {
         setSaldo(Number(sal?.saldo ?? 0));
       }
       setFantini((f as Fantino[]) ?? []);
-      const mappa: Record<string, number> = {};
-      (rel ?? []).forEach((r) => { mappa[r.fantino_id] = r.livello; });
-      setLivelli(mappa);
       setTipiAttivita(((tipi ?? []) as unknown[]).map((t) => {
         const x = t as Record<string, unknown>;
         return { id: x.id as string, nome: x.nome as string, costo_minimo: Number(x.costo_minimo), costo_massimo: Number(x.costo_massimo), variazione_massima: Number(x.variazione_massima) };
@@ -93,6 +98,19 @@ export default function PaginaFantini() {
       const perFantino: Record<string, string[]> = {};
       (acc ?? []).forEach((a) => { (perFantino[a.fantino_id] ??= []).push(a.tipo); });
       setAccordiPer(perFantino);
+
+      void Promise.resolve(relazioniInBackground).then(({ data: rel, error }) => {
+        if (error) {
+          console.error('relazioni_contrada_fantino:', error.message);
+          return;
+        }
+        if (numeroCaricamento !== caricamentoAttuale.current) return;
+        const mappa: Record<string, number> = {};
+        (rel ?? []).forEach((r) => { mappa[r.fantino_id] = r.livello; });
+        setLivelli(mappa);
+      }).catch((error: unknown) => {
+        console.error('relazioni_contrada_fantino:', error);
+      });
     } else if (m.ruolo === 'sindaco') {
       const { data: f } = await supabase.from('fantini').select(COLONNE_FANTINO).order('nome');
       setFantini((f as Fantino[]) ?? []);
@@ -113,7 +131,7 @@ export default function PaginaFantini() {
     const fantino = fantini.find((f) => f.id === fantinoId);
     if (!fantino || !contradaId) return;
     setFantinoChat(fantino);
-    setMessaggioInizialeChat('Grazie per l\'iniziativa e per l\'attenzione che. hai voluto dedicarmi. Spero che il nostro rapporto possa crescere ancora di più.');
+    setMessaggioInizialeChat('Grazie per l\'iniziativa e per l\'attenzione che mi avete dedicato. Spero che il nostro rapporto possa crescere ancora.');
     setChatAperta(true);
   }
 

@@ -121,6 +121,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
   }
 
+  if (autoreMessaggio === 'fantino') {
+    const { count, error: erroreCronologia } = await supabase
+      .from('chat_messaggi')
+      .select('id', { count: 'exact', head: true })
+      .eq('partita_id', partita_id)
+      .eq('contrada_id', membro.contrada_id)
+      .eq('fantino_id', fantino_id);
+
+    if (erroreCronologia) {
+      return NextResponse.json({ error: 'Non riesco a caricare la conversazione.' }, { status: 500 });
+    }
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ salvato: false, risposta: null, accordi: [] });
+    }
+
+    const { error: erroreRingraziamento } = await supabase.from('chat_messaggi').insert({
+      partita_id,
+      contrada_id: membro.contrada_id,
+      fantino_id,
+      autore: 'fantino',
+      utente_id: userId,
+      contenuto: messaggio,
+    });
+    if (erroreRingraziamento) {
+      console.error('Ringraziamento non registrato:', erroreRingraziamento.message);
+      return NextResponse.json({ error: 'Non riesco a salvare il messaggio del fantino.' }, { status: 500 });
+    }
+    return NextResponse.json({ salvato: true, risposta: null, accordi: [] });
+  }
+
   const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();
   const { count } = autoreMessaggio === 'utente'
     ? await supabase

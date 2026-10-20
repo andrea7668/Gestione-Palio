@@ -300,11 +300,6 @@ select.campo:hover{border-color:var(--vino)}
 .trattativa-messaggio p{margin:6px 0 0;font-size:14px;line-height:1.45}
 .tratta-info{border:1px solid #d9a9b0;background:#fbf0f1;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
 .tratta-aggiorna{align-self:flex-start;padding:8px 18px}
-.accordo-card{border:1px solid #9cc7a8;background:#eaf4ec;border-radius:10px;padding:12px 14px}
-.accordo-testa{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.accordo-titolo{font-weight:700;color:#1f5a33}
-.accordo-tag{background:#d3ead9;color:#1f5a33;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
-.accordo-testo{margin:6px 0 0;font-size:14px}
 .tratta-legenda{font-size:13px;color:var(--tenue);line-height:1.5}
 .tratta-legenda p{margin:0}
 .tratta-legenda ul{margin:8px 0 0;padding-left:18px}

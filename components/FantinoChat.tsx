@@ -106,7 +106,9 @@ export default function FantinoChat({
     const messaggio = testoDaInviare.trim();
     if (!messaggio || caricando) return;
 
-    setMessaggi((prev) => [...prev, { autore, contenuto: messaggio, creato_il: new Date().toISOString() }]);
+    if (autore === 'utente') {
+      setMessaggi((prev) => [...prev, { autore, contenuto: messaggio, creato_il: new Date().toISOString() }]);
+    }
     setTesto('');
     setCaricando(true);
     setErrore(null);
@@ -129,15 +131,23 @@ export default function FantinoChat({
       if (!risposta.ok) {
         setErrore(dati.error ?? 'Qualcosa è andato storto, riprova.');
       } else {
-        setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: testoVisibile(dati.risposta), creato_il: new Date().toISOString() }]);
-        const nuoviAccordi = Array.isArray(dati.accordi) ? dati.accordi as Accordo[] : [];
-        if (nuoviAccordi.length > 0) {
-          setAccordi((precedenti) => [
-            ...precedenti.filter((a) => !nuoviAccordi.some((nuovo) => nuovo.tipo === a.tipo)),
-            ...nuoviAccordi,
-          ]);
+        if (autore === 'fantino') {
+          if (dati.salvato) {
+            setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: messaggio, creato_il: new Date().toISOString() }]);
+          }
+        } else {
+          if (typeof dati.risposta === 'string' && dati.risposta.trim()) {
+            setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: testoVisibile(dati.risposta), creato_il: new Date().toISOString() }]);
+          }
+          const nuoviAccordi = Array.isArray(dati.accordi) ? dati.accordi as Accordo[] : [];
+          if (nuoviAccordi.length > 0) {
+            setAccordi((precedenti) => [
+              ...precedenti.filter((a) => !nuoviAccordi.some((nuovo) => nuovo.tipo === a.tipo)),
+              ...nuoviAccordi,
+            ]);
+          }
+          await Promise.all([caricaAccordi(), caricaLivello()]);
         }
-        await Promise.all([caricaAccordi(), caricaLivello()]);
       }
     } catch {
       setErrore('Connessione assente: controlla la rete e riprova.');
@@ -151,8 +161,9 @@ export default function FantinoChat({
     if (!cronologiaCaricata || !messaggioIniziale || messaggioInizialeAvviato.current) return;
     messaggioInizialeAvviato.current = true;
     onMessaggioInizialeUsato?.();
+    if (messaggi.length > 0) return;
     void invia(messaggioIniziale, 'fantino');
-  }, [cronologiaCaricata, invia, messaggioIniziale, onMessaggioInizialeUsato]);
+  }, [cronologiaCaricata, invia, messaggioIniziale, messaggi.length, onMessaggioInizialeUsato]);
 
   useAggiorna(caricaAccordi, 20000);
 
@@ -226,15 +237,6 @@ export default function FantinoChat({
           <button className="btn btn-vuoto tratta-aggiorna" onClick={() => { caricaAccordi(); caricaLivello(); }}>Aggiorna</button>
 
           {accordiOrdinati.length === 0 && <p className="aiuto">Nessun accordo ancora con questo fantino.</p>}
-          {accordiOrdinati.map((a) => (
-            <div key={a.id} className="accordo-card">
-              <div className="accordo-testa">
-                <span className="accordo-titolo">{nomeAccordo(a.tipo)}</span>
-                <span className="accordo-tag">accordo verbale</span>
-              </div>
-              <p className="accordo-testo">{a.testo}</p>
-            </div>
-          ))}
 
           <div className="tratta-legenda">
             <p>
