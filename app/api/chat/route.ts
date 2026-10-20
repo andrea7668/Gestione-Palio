@@ -50,7 +50,8 @@ function chiaveAccordo(s: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const { partita_id, fantino_id, messaggio, access_token } = await req.json();
+  const { partita_id, fantino_id, messaggio, access_token, messaggio_autore } = await req.json();
+  const autoreMessaggio = messaggio_autore === 'fantino' ? 'fantino' : 'utente';
 
   if (!partita_id || !fantino_id || !messaggio || !access_token) {
     return NextResponse.json({ error: 'Parametri mancanti' }, { status: 400 });
@@ -91,12 +92,14 @@ export async function POST(req: NextRequest) {
   }
 
   const daQuando = new Date(Date.now() - FINESTRA_MINUTI * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from('chat_messaggi')
-    .select('id', { count: 'exact', head: true })
-    .eq('utente_id', userId)
-    .eq('autore', 'utente')
-    .gte('creato_il', daQuando);
+  const { count } = autoreMessaggio === 'utente'
+    ? await supabase
+      .from('chat_messaggi')
+      .select('id', { count: 'exact', head: true })
+      .eq('utente_id', userId)
+      .eq('autore', 'utente')
+      .gte('creato_il', daQuando)
+    : { count: 0 };
 
   if ((count ?? 0) >= MAX_MESSAGGI_FINESTRA) {
     return NextResponse.json(
@@ -247,7 +250,7 @@ I tag tra doppie parentesi quadre non verranno mostrati all'utente.`;
   const nuovoLivello = Math.max(0, Math.min(100, livello + delta));
 
   await supabase.from('chat_messaggi').insert([
-    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'utente', utente_id: userId, contenuto: messaggio },
+    { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: autoreMessaggio, utente_id: userId, contenuto: messaggio },
     { partita_id, contrada_id: membro.contrada_id, fantino_id, autore: 'fantino', utente_id: userId, contenuto: testoRisposta },
   ]);
 

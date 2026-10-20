@@ -10,6 +10,10 @@ import FotoFantino from './FotoFantino';
 type Messaggio = { autore: 'utente' | 'fantino'; contenuto: string; creato_il: string };
 type Accordo = { id: number; tipo: string; testo: string };
 
+function testoVisibile(contenuto: string): string {
+  return contenuto.replace(/\[\[\s*(?:ACCORDO|DELTA)\s*:[\s\S]*?\]\]/gi, '').trim();
+}
+
 interface Props {
   partitaId: string;
   contradaId: string;
@@ -71,7 +75,12 @@ export default function FantinoChat({
       .order('id', { ascending: true })
       .limit(200)
       .then(({ data }) => {
-        if (data) setMessaggi(data as Messaggio[]);
+        if (data) {
+          setMessaggi((data as Messaggio[]).map((messaggio) => ({
+            ...messaggio,
+            contenuto: testoVisibile(messaggio.contenuto),
+          })));
+        }
         setCronologiaCaricata(true);
       });
     caricaAccordi();
@@ -82,11 +91,11 @@ export default function FantinoChat({
     fine.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messaggi, caricando]);
 
-  const invia = useCallback(async (testoDaInviare = testo) => {
+  const invia = useCallback(async (testoDaInviare = testo, autore: Messaggio['autore'] = 'utente') => {
     const messaggio = testoDaInviare.trim();
     if (!messaggio || caricando) return;
 
-    setMessaggi((prev) => [...prev, { autore: 'utente', contenuto: messaggio, creato_il: new Date().toISOString() }]);
+    setMessaggi((prev) => [...prev, { autore, contenuto: messaggio, creato_il: new Date().toISOString() }]);
     setTesto('');
     setCaricando(true);
     setErrore(null);
@@ -101,6 +110,7 @@ export default function FantinoChat({
           partita_id: partitaId,
           fantino_id: fantinoId,
           messaggio,
+          messaggio_autore: autore,
           access_token: sessione.session?.access_token,
         }),
       });
@@ -108,7 +118,7 @@ export default function FantinoChat({
       if (!risposta.ok) {
         setErrore(dati.error ?? 'Qualcosa è andato storto, riprova.');
       } else {
-        setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: dati.risposta, creato_il: new Date().toISOString() }]);
+        setMessaggi((prev) => [...prev, { autore: 'fantino', contenuto: testoVisibile(dati.risposta), creato_il: new Date().toISOString() }]);
         caricaAccordi();
         caricaLivello();
       }
@@ -124,7 +134,7 @@ export default function FantinoChat({
     if (!cronologiaCaricata || !messaggioIniziale || messaggioInizialeAvviato.current) return;
     messaggioInizialeAvviato.current = true;
     onMessaggioInizialeUsato?.();
-    void invia(messaggioIniziale);
+    void invia(messaggioIniziale, 'fantino');
   }, [cronologiaCaricata, invia, messaggioIniziale, onMessaggioInizialeUsato]);
 
   const accordiOrdinati = [...accordi].sort((a, b) => ordineAccordo(b.tipo) - ordineAccordo(a.tipo));
