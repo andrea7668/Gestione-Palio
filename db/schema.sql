@@ -67,6 +67,7 @@ end $$;
 
 CREATE FUNCTION public.dashboard_partita(p_partita uuid) RETURNS jsonb
     LANGUAGE plpgsql STABLE
+    SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 declare
@@ -938,6 +939,11 @@ CREATE INDEX colloqui_continuita_idx ON public.colloqui_continuita USING btree (
 
 CREATE INDEX eventi_idx ON public.eventi USING btree (partita_id, creato_il DESC);
 
+--
+-- Name: eventi_partita_data_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX eventi_partita_data_id_idx ON public.eventi USING btree (partita_id, creato_il DESC, id DESC);
 
 --
 -- Name: membri_contrada_idx; Type: INDEX; Schema: public; Owner: -
@@ -952,6 +958,11 @@ CREATE INDEX membri_contrada_idx ON public.membri USING btree (partita_id, contr
 
 CREATE INDEX membri_utente_idx ON public.membri USING btree (utente_id);
 
+--
+-- Name: membri_partita_utente_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX membri_partita_utente_idx ON public.membri USING btree (partita_id, utente_id);
 
 --
 -- Name: movimenti_crediti_idx; Type: INDEX; Schema: public; Owner: -
@@ -959,6 +970,11 @@ CREATE INDEX membri_utente_idx ON public.membri USING btree (utente_id);
 
 CREATE INDEX movimenti_crediti_idx ON public.movimenti_crediti USING btree (partita_id, contrada_id, creato_il DESC);
 
+--
+-- Name: movimenti_crediti_partita_contrada_data_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX movimenti_crediti_partita_contrada_data_id_idx ON public.movimenti_crediti USING btree (partita_id, contrada_id, creato_il DESC, id DESC);
 
 --
 -- Name: notifiche_partita_idx; Type: INDEX; Schema: public; Owner: -
@@ -1377,6 +1393,17 @@ ALTER TABLE public.fantini ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "fantini: lettura per utenti loggati" ON public.fantini FOR SELECT TO authenticated USING (true);
 
+--
+-- Name: cavalli; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cavalli ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cavalli cavalli: lettura per utenti loggati; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "cavalli: lettura per utenti loggati" ON public.cavalli FOR SELECT TO authenticated USING (true);
 
 --
 -- Name: membri; Type: ROW SECURITY; Schema: public; Owner: -

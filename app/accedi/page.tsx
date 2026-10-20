@@ -9,13 +9,15 @@ const mail = (u: string) => u.trim().toLowerCase() + '@giocodelpalio.it';
 
 export default function Accedi() {
   const router = useRouter();
-  const [reg, setReg] = useState(false);
+  const [reg, setReg] = useState(() => typeof window !== 'undefined' && window.location.search.includes('registrati'));
   const [f, setF] = useState({ nome: '', cognome: '', username: '', password: '', conferma: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
-  useEffect(() => { setReg(window.location.search.includes('registrati')); }, []);
+  useEffect(() => {
+    router.prefetch('/partite');
+  }, [router]);
 
   async function invia() {
     setErr(null);

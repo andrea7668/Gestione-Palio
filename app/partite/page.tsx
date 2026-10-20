@@ -22,12 +22,13 @@ export default function Partite() {
       if (!s.session) return router.replace('/accedi');
       const uid = s.session.user.id;
 
-      const [{ data: p }, { data }] = await Promise.all([
-        supabase.from('profiles').select('nome, cognome').eq('id', uid).single(),
-        supabase.from('membri').select('ruolo, contrada_id, partite(id, nome, anno), contrade(nome)').eq('utente_id', uid),
-      ]);
+      const { data } = await supabase
+        .from('membri')
+        .select('ruolo, contrada_id, partite(id, nome, anno), contrade(nome)')
+        .eq('utente_id', uid);
 
-      if (p) setNomeUtente(`${p.nome ?? ''} ${p.cognome ?? ''}`.trim());
+      const metadati = s.session.user.user_metadata as { nome?: string; cognome?: string } | undefined;
+      setNomeUtente(`${metadati?.nome ?? ''} ${metadati?.cognome ?? ''}`.trim());
       setRighe((data ?? []) as unknown as Riga[]);
     })();
   }, [router]);
