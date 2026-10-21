@@ -221,7 +221,7 @@ export default function Partita() {
                 <p className="mov-data">{formatoData(m.creato_il)}</p>
               </div>
               <div className="mov-importo">
-                <strong className={m.importo >= 0 ? 'mov-pos' : 'mov-neg'}>{m.importo >= 0 ? '+' : ''}{fmt(m.importo)} crediti</strong>
+                <strong className={m.importo > 0 ? 'mov-pos' : 'mov-neg'}>{m.importo > 0 ? '+' : ''}{fmt(m.importo)} crediti</strong>
                 <span className="mov-saldo">{fmt(m.prima)} → {fmt(m.dopo)}</span>
               </div>
             </div>

@@ -350,14 +350,22 @@ function SchedaFantino({
               <select className="campo" value={tipoScelto} onChange={(e) => sceglieTipo(e.target.value)}>
                 <option value="">Scegli un&apos;attività</option>
                 {tipiAttivita.map((t) => (
-                  <option key={t.id} value={t.id}>{t.nome} · {t.costo_minimo}-{t.costo_massimo} crediti</option>
+                  <option key={t.id} value={t.id}>
+                    {t.nome} · {t.costo_minimo === 0 && t.costo_massimo === 0
+                      ? 'gratuita'
+                      : t.costo_minimo + '-' + t.costo_massimo + ' crediti'}
+                  </option>
                 ))}
               </select>
               {tipo && (
-                <label>
-                  Quanto vuoi spendere? ({tipo.costo_minimo}-{tipo.costo_massimo})
-                  <input className="campo" type="number" min={tipo.costo_minimo} max={tipo.costo_massimo} step={0.5} value={costo} onChange={(e) => setCosto(e.target.value)} />
-                </label>
+                tipo.costo_minimo === 0 && tipo.costo_massimo === 0 ? (
+                  <p className="aiuto">Questa iniziativa non costa crediti.</p>
+                ) : (
+                  <label>
+                    Quanto vuoi spendere? ({tipo.costo_minimo}-{tipo.costo_massimo})
+                    <input className="campo" type="number" min={tipo.costo_minimo} max={tipo.costo_massimo} step={0.5} value={costo} onChange={(e) => setCosto(e.target.value)} />
+                  </label>
+                )
               )}
               <div className="pannello-iniziativa-bottoni">
                 <button className="btn" onClick={conferma} disabled={!tipo || invio}>Conferma</button>

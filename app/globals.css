@@ -112,16 +112,35 @@ select.campo:hover{border-color:var(--vino)}
 .tratta-cavalli{padding:18px}
 .tratta-cavalli-testa{border-bottom:1px solid var(--linea);padding:0 0 16px;margin-bottom:16px}
 .tratta-cavalli-testa h2{font-size:1.35rem}
-.griglia-cavalli{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.scheda-cavallo{border:1px solid var(--linea);border-radius:5px;padding:14px 13px;background:var(--carta);min-height:74px}
-.scheda-cavallo h3{font:600 1.1rem Inter,sans-serif;color:var(--testo);margin:0;text-transform:none}
-.scheda-cavallo p{color:var(--tenue);font-size:13px;margin:7px 0 0}
-@media(max-width:1050px){.griglia-cavalli{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.griglia-cavalli{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.scheda-cavallo{border:1px solid var(--linea);border-radius:10px;padding:16px;background:var(--carta);display:flex;flex-direction:column;gap:12px}
+.scheda-cavallo-testa{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.scheda-cavallo-testa h3{font:600 1.15rem Inter,sans-serif;color:var(--testo);margin:2px 0 0;text-transform:none}
+.badge-overall{background:#f4ead0;color:var(--vino);border-radius:99px;padding:5px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.dati-cavallo-riepilogo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px}
+.dati-cavallo-riepilogo div{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--linea);font-size:13px}
+.dati-cavallo-riepilogo span,.stat-cavallo-riga span{color:var(--tenue)}
+.dati-cavallo-riepilogo strong,.stat-cavallo-riga strong{font-variant-numeric:tabular-nums}
+.stat-cavallo-sezione{border:1px solid var(--linea);border-radius:8px;background:#fbfaf7;padding:10px 12px}
+.stat-cavallo-sezione h4{font:700 .72rem Inter,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--tenue);margin:0 0 4px}
+.stat-cavallo-riga{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--linea);font-size:12px}
+.stat-cavallo-riga:last-child{border-bottom:0}
+.gruppi-stat-cavallo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gruppo-stat-cavallo{padding:9px 8px}
+.gruppo-stat-cavallo h4{font-size:.64rem;min-height:2.2em}
+.gruppo-stat-cavallo .stat-cavallo-riga{font-size:11px;gap:4px}
+.nota-regole-cavalli{background:#f3efe6;border-radius:6px;padding:12px 14px;color:var(--tenue);font-size:13px;margin:0 0 14px}
+.nota-cavallo{font-size:12px;color:var(--tenue);margin:0;padding:0 2px}
+@media(max-width:640px){
+  .griglia-cavalli{grid-template-columns:minmax(0,1fr)}
+  .gruppi-stat-cavallo{gap:5px}
+  .gruppo-stat-cavallo{padding:8px 6px}
+  .gruppo-stat-cavallo .stat-cavallo-riga{font-size:10px}
+}
 @media(max-width:700px){
   .pagina-cavalli{padding:20px 16px 48px}
   .intesta-cavalli{flex-direction:column}
   .intesta-cavalli h1{font-size:2.1rem}
-  .griglia-cavalli{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 .griglia-fantini{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 .scheda-fantino{background:var(--carta);border:1px solid var(--linea);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
