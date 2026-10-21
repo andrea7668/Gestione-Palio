@@ -133,7 +133,9 @@ export default function BarraSuperiore({
     <header className="barra-superiore">
       <div className="barra-superiore-sx">
         {mostraHamburger && (
-          <button className="bs-hamburger" onClick={onHamburger} aria-label="Apri/chiudi menu">☰</button>
+          <button className="bs-hamburger" onClick={onHamburger} aria-label="Apri/chiudi menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
         )}
         <Link href="/partite" className="bs-logo">Il Gioco del Palio</Link>
       </div>
@@ -149,7 +151,9 @@ export default function BarraSuperiore({
             aria-expanded={aperto}
             onClick={() => setAperto((a) => !a)}
           >
-            🔔
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+            </svg>
             {nonLette > 0 && <span className="bs-badge">{nonLette > 9 ? '9+' : nonLette}</span>}
           </button>
 
@@ -177,8 +181,16 @@ export default function BarraSuperiore({
           )}
         </div>
 
-        {nome && <span className="bs-utente">👤 {nome}</span>}
-        <button className="bs-link bs-esci" onClick={esci}>⇥ Esci</button>
+        {nome && (
+          <span className="bs-utente">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></svg>
+            {nome}
+          </span>
+        )}
+        <button className="bs-link bs-esci" onClick={esci}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M21 3v18" /></svg>
+          Esci
+        </button>
       </div>
     </header>
   );

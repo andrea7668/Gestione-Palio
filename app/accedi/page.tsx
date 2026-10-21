@@ -37,7 +37,7 @@ export default function Accedi() {
   return (
     <main className="centro">
       <form className="carta" onSubmit={(e) => { e.preventDefault(); invia(); }}>
-        <h2>{reg ? 'Crea il tuo account' : 'Accedi'}</h2>
+        <h1>{reg ? 'Crea il tuo account' : 'Accedi'}</h1>
         <p className="aiuto">{reg ? 'Registrati, poi inserisci il codice PALIO ricevuto dal Sindaco per entrare nella partita.' : 'Entra con il tuo nome utente e la tua password.'}</p>
         {reg && (<>
           <label>Nome<input className="campo" value={f.nome} onChange={set('nome')} /></label>
