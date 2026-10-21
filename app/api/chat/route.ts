@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
   const fase = comeFase(rigaPartita?.fase);
   const faseAccordi = FASI_CON_ACCORDI.includes(fase);
   const rapportoDiretto = FASI_RAPPORTO_DIRETTO.includes(fase);
+  const accessoLiberoInverno = fase === 'inverno';
 
   const { data: svolte } = await supabase
     .from('attivita_svolte')
@@ -118,7 +119,11 @@ export async function POST(req: NextRequest) {
     .limit(1);
 
   if (!svolte || svolte.length === 0) {
+    if (accessoLiberoInverno) {
+      // In Inverno il colloquio libero è disponibile anche senza iniziative.
+    } else {
     return NextResponse.json({ error: "Devi prima fare un'iniziativa con questo fantino per poterci parlare." }, { status: 403 });
+    }
   }
 
   if (autoreMessaggio === 'fantino') {

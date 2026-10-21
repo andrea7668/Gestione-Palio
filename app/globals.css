@@ -180,9 +180,43 @@ select.campo:hover{border-color:var(--vino)}
 .chat-overlay-chiudi{position:absolute;top:8px;right:10px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--tenue)}
 .chat-overlay-lista{display:flex;flex-direction:column;gap:8px}
 
+.pagina-albo{max-width:1600px;margin:0 auto;padding:30px 24px 60px}
+.intesta-albo{margin-bottom:24px}
+.intesta-albo h1{font-size:2.2rem;line-height:1.1}
+.intesta-albo>p:last-child{color:var(--tenue);margin:7px 0 0}
+.albo-sopratitolo{margin:0 0 7px;color:var(--oro);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.griglia-albo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.carta-albo{min-width:0;background:var(--carta);border:1px solid var(--linea);border-radius:4px;padding:18px 16px}
+.testa-carta-albo{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:0 2px 14px;border-bottom:1px solid var(--linea);margin-bottom:4px}
+.testa-carta-albo>div{display:flex;align-items:baseline;gap:9px;min-width:0}
+.testa-carta-albo h2{font-size:1.55rem;line-height:1}
+.albo-numero{color:var(--oro);font-size:11px;font-weight:700;letter-spacing:.08em}
+.albo-metrica{color:var(--tenue);font-size:10px;line-height:1.3;text-align:right}
+.lista-albo{list-style:none;margin:0;padding:0;counter-reset:none}
+.lista-albo li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:34px;padding:5px 4px;border-bottom:1px solid rgba(38,32,28,.07);font-size:12.5px}
+.lista-albo li:last-child{border-bottom:0}
+.lista-albo li.podio-albo{background:linear-gradient(90deg,rgba(181,143,58,.11),transparent 82%)}
+.posizione-albo{color:#92897e;font-size:10px;font-variant-numeric:tabular-nums;text-align:center}
+.podio-albo .posizione-albo{color:var(--oro);font-weight:700}
+.nome-albo{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.valore-albo{min-width:26px;color:var(--vino);text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
+.valore-fantino{display:flex;justify-content:flex-end;align-items:baseline;gap:7px;min-width:62px}
+.valore-fantino small{min-width:24px;color:var(--tenue);font-size:10px;font-weight:500}
+
 @media(max-width:700px){
   .due-box{grid-template-columns:1fr}
   .chat-overlay{padding:10px}
+}
+
+@media(max-width:1199px){
+  .griglia-albo{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .pagina-albo{padding:22px 16px 48px}
+  .intesta-albo h1{font-size:1.9rem}
+  .griglia-albo{grid-template-columns:minmax(0,1fr)}
+  .carta-albo{padding:16px}
+  .lista-albo li{font-size:13px}
 }
 :root{--altezza-barra:56px}
 
@@ -238,6 +272,8 @@ select.campo:hover{border-color:var(--vino)}
 .pannello-iniziativa label{font-size:13px;color:var(--tenue)}
 .pannello-iniziativa-bottoni{display:flex;gap:10px}
 .pannello-iniziativa-bottoni .btn{flex:1}
+.banner-rivale{display:flex;flex-direction:column;gap:4px;background:#fff1a8;border:1px solid #d7ad00;border-radius:4px;padding:10px 12px;color:#5b4500;font-size:13px}
+.banner-rivale strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em}
 .btn:disabled{opacity:.45;cursor:default}
 
 .chat-fantini-fab{position:fixed;bottom:22px;right:22px;background:var(--vino);color:#fff;border:none;border-radius:99px;padding:13px 22px;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;z-index:30}

@@ -20,7 +20,7 @@ const voci = [
   { nome: 'Cavalli', href: 'cavalli', icona: '🏆', attiva: true },
   { nome: 'Fantini', href: 'fantini', icona: '⛑', attiva: true },
   { nome: 'Museo della Contrada', href: 'museo', icona: '🏛', attiva: false },
-  { nome: "Archivio e Albo d'Oro", href: 'archivio', icona: '📜', attiva: false },
+  { nome: "Archivio e Albo d'Oro", href: 'archivio', icona: '📜', attiva: true },
 ];
 
 export default function LayoutPartita({ children }: { children: React.ReactNode }) {

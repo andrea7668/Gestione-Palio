@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { FASI, INFO_FASI, comeFase } from '../../../lib/fasi';
+import { FASI, INFO_FASI, SOGLIA_CONTINUITA, comeFase } from '../../../lib/fasi';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const err = (m: string, s = 400) => NextResponse.json({ error: m }, { status: s });
-const SOGLIA_CONTINUITA = 60;
-
 async function notifica(partitaId: string, destinatari: string[], tipo: string, titolo: string, testo?: string) {
   const unici = Array.from(new Set(destinatari.filter(Boolean)));
   if (unici.length === 0) return;
@@ -82,6 +80,22 @@ export async function POST(req: NextRequest) {
     }).select('id, utente_id, autore_nome, contenuto, creato_il').single();
     if (error || !messaggio) return err('Messaggio non inviato.', 500);
     return NextResponse.json({ ok: true, messaggio });
+  }
+
+  if (b.azione === 'rapporti_rivali') {
+    if (!me.contrada_id) return err('Non hai ancora una Contrada assegnata.', 403);
+    const { data: contrada } = await db.from('contrade').select('rivale').eq('id', me.contrada_id).single();
+    if (!contrada?.rivale) return NextResponse.json({ ok: true, rivale: null, rapporti: {} });
+    const { data: rivale } = await db.from('contrade').select('id, nome').eq('nome', contrada.rivale).maybeSingle();
+    if (!rivale) return NextResponse.json({ ok: true, rivale: contrada.rivale, rapporti: {} });
+    const [{ data: fantini }, { data: relazioni }] = await Promise.all([
+      db.from('fantini').select('id, livello_base'),
+      db.from('relazioni_contrada_fantino').select('fantino_id, livello').eq('partita_id', b.partita_id).eq('contrada_id', rivale.id),
+    ]);
+    const rapporti: Record<string, number> = {};
+    (fantini ?? []).forEach((fantino) => { rapporti[fantino.id] = fantino.livello_base; });
+    (relazioni ?? []).forEach((relazione) => { rapporti[relazione.fantino_id] = relazione.livello; });
+    return NextResponse.json({ ok: true, rivale: rivale.nome, rapporti });
   }
 
   if (b.azione === 'fai_attivita') {

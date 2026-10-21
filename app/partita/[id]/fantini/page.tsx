@@ -3,13 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, chiama } from '../../../../lib/supabase';
-import { INFO_FASI } from '../../../../lib/fasi';
+import { INFO_FASI, SOGLIA_CONTINUITA, SOGLIA_RAPPORTO_RIVALE_INVERNO } from '../../../../lib/fasi';
 import { TIPI_ACCORDO, etichettaRapporto } from '../../../../lib/accordi';
 import { useFase } from '../../../../lib/contesto-fase';
 import FantinoChat from '../../../../components/FantinoChat';
 import FotoFantino from '../../../../components/FotoFantino';
-
-const SOGLIA_CONTINUITA = 60;
 
 type Fantino = {
   id: string; nome: string; soprannome: string | null; eta: number | null; overall: number | null;
@@ -31,6 +29,10 @@ function accordoPiuForte(tipi: string[] | undefined): string | null {
   return migliore ? migliore.nome : null;
 }
 
+function faseInvernoConRivaleDebole(rapportoRivale: number | null): boolean {
+  return rapportoRivale !== null && rapportoRivale < SOGLIA_RAPPORTO_RIVALE_INVERNO;
+}
+
 export default function PaginaFantini() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -38,6 +40,8 @@ export default function PaginaFantini() {
   const [ruolo, setRuolo] = useState<string | null>(null);
   const [contradaId, setContradaId] = useState<string | null>(null);
   const [nomeContrada, setNomeContrada] = useState('');
+  const [nomeRivale, setNomeRivale] = useState<string | null>(null);
+  const [rapportiRivali, setRapportiRivali] = useState<Record<string, number>>({});
   const [saldo, setSaldo] = useState<number | null>(null);
   const [erroreSaldo, setErroreSaldo] = useState<string | null>(null);
   const [fantini, setFantini] = useState<Fantino[]>([]);
@@ -57,7 +61,7 @@ export default function PaginaFantini() {
     if (!s.session) return router.replace('/accedi');
     const { data: m } = await supabase
       .from('membri')
-      .select('ruolo, contrada_id, contrade(nome)')
+      .select('ruolo, contrada_id, contrade(nome, rivale)')
       .eq('partita_id', id)
       .eq('utente_id', s.session.user.id)
       .single();
@@ -65,6 +69,8 @@ export default function PaginaFantini() {
     setRuolo(m.ruolo);
     setContradaId(m.contrada_id);
     setNomeContrada((m.contrade as unknown as { nome: string } | null)?.nome ?? '');
+    const rivale = (m.contrade as unknown as { rivale: string | null } | null)?.rivale ?? null;
+    setNomeRivale(rivale);
 
     if (m.contrada_id) {
       const relazioniInBackground = supabase
@@ -74,12 +80,13 @@ export default function PaginaFantini() {
         .eq('contrada_id', m.contrada_id)
         .then((risultato) => risultato);
 
-      const [{ data: f }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }] = await Promise.all([
+      const [{ data: f }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }, regolaRivale] = await Promise.all([
         supabase.from('fantini').select(COLONNE_FANTINO).order('nome'),
         supabase.from('tipi_attivita').select(COLONNE_ATTIVITA).order('nome'),
         supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('saldi_contrade').select('saldo').eq('partita_id', id).eq('contrada_id', m.contrada_id).maybeSingle(),
         supabase.from('accordi_fantini').select('fantino_id, tipo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
+        fase === 'inverno' ? chiama({ azione: 'rapporti_rivali', partita_id: id }) : Promise.resolve(null),
       ]);
       if (erroreSaldoQuery) {
         console.error('saldi_contrade:', erroreSaldoQuery.message);
@@ -98,6 +105,12 @@ export default function PaginaFantini() {
       const perFantino: Record<string, string[]> = {};
       (acc ?? []).forEach((a) => { (perFantino[a.fantino_id] ??= []).push(a.tipo); });
       setAccordiPer(perFantino);
+      if (regolaRivale?.ok) {
+        setRapportiRivali(regolaRivale.rapporti ?? {});
+        setNomeRivale(regolaRivale.rivale ?? rivale);
+      } else if (regolaRivale) {
+        console.error('rapporti_rivali:', regolaRivale.error ?? 'Risposta non valida');
+      }
 
       void Promise.resolve(relazioniInBackground).then(({ data: rel, error }) => {
         if (error) {
@@ -116,7 +129,7 @@ export default function PaginaFantini() {
       setFantini((f as Fantino[]) ?? []);
     }
     setCaricato(true);
-  }, [id, router]);
+  }, [fase, id, router]);
 
   useEffect(() => { carica(); }, [carica]);
 
@@ -127,11 +140,13 @@ export default function PaginaFantini() {
     return { successo: r.successo as boolean, delta: r.delta as number };
   }
 
-  function apriChatDopoIniziativa(fantinoId: string) {
+  function apriChatDopoIniziativa(fantinoId: string, conIniziativa = true) {
     const fantino = fantini.find((f) => f.id === fantinoId);
     if (!fantino || !contradaId) return;
     setFantinoChat(fantino);
-    setMessaggioInizialeChat('Grazie per l\'iniziativa e per l\'attenzione che mi avete dedicato. Spero che il nostro rapporto possa crescere ancora.');
+    setMessaggioInizialeChat(conIniziativa
+      ? 'Grazie per l\'iniziativa e per l\'attenzione che mi avete dedicato. Spero che il nostro rapporto possa crescere ancora.'
+      : null);
     setChatAperta(true);
   }
 
@@ -161,7 +176,7 @@ export default function PaginaFantini() {
     ? fantini
     : [...fantini].sort((a, b) => rapportoDi(b) - rapportoDi(a) || a.nome.localeCompare(b.nome, 'it'));
 
-  const conChat = ordinati.filter((f) => sbloccati.has(f.id));
+  const conChat = fase === 'inverno' ? ordinati : ordinati.filter((f) => sbloccati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -183,17 +198,19 @@ export default function PaginaFantini() {
               livello={livello}
               perc={perc}
               nomeContrada={nomeContrada}
+              fase={fase}
               soloLettura={soloLettura}
               accordo={accordoPiuForte(accordiPer[f.id])}
+              rapportoRivale={rapportiRivali[f.id] ?? null}
+              nomeRivale={nomeRivale}
               tipiAttivita={tipiAttivita}
               onFaiAttivita={(tipoId, costo) => faiAttivita(f.id, tipoId, costo)}
-              onApriChat={() => apriChatDopoIniziativa(f.id)}
+              onApriChat={(conIniziativa = true) => apriChatDopoIniziativa(f.id, conIniziativa)}
               onContinuita={() => faiContinuita(f.id)}
             />
           );
         })}
       </div>
-
       {!soloLettura && (
         <button className="chat-fantini-fab" onClick={() => setChatAperta(true)}>💬 Chat fantini</button>
       )}
@@ -223,7 +240,9 @@ export default function PaginaFantini() {
                 {fase && (
                   <p className="aiuto">
                     Fase: {INFO_FASI[fase].nome}.{' '}
-                    Puoi parlare solo con i fantini con cui hai fatto un&apos;iniziativa.
+                    {fase === 'inverno'
+                      ? 'In Inverno puoi parlare liberamente con tutti i fantini, anche senza iniziative.'
+                      : 'Puoi parlare solo con i fantini con cui hai fatto un&apos;iniziativa.'}
                   </p>
                 )}
                 {conChat.length === 0 && (
@@ -233,7 +252,7 @@ export default function PaginaFantini() {
                   const acc = accordoPiuForte(accordiPer[f.id]);
                   return (
                     <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => { setMessaggioInizialeChat(null); setFantinoChat(f); }}>
-                      {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
+                      {fase === 'inverno' ? 'Parla liberamente · ' : ''}{f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
                     </button>
                   );
                 })}
@@ -247,12 +266,12 @@ export default function PaginaFantini() {
 }
 
 function SchedaFantino({
-  f, livello, perc, nomeContrada, soloLettura, accordo, tipiAttivita, onFaiAttivita, onApriChat, onContinuita,
+  f, livello, perc, nomeContrada, nomeRivale, rapportoRivale, fase, soloLettura, accordo, tipiAttivita, onFaiAttivita, onApriChat, onContinuita,
 }: {
-  f: Fantino; livello: number; perc: number | null; nomeContrada: string; soloLettura: boolean; accordo: string | null;
+  f: Fantino; livello: number; perc: number | null; nomeContrada: string; nomeRivale: string | null; rapportoRivale: number | null; fase: string | null; soloLettura: boolean; accordo: string | null;
   tipiAttivita: TipoAttivita[];
   onFaiAttivita: (tipoId: string, costo: number) => Promise<{ successo: boolean; delta: number } | undefined>;
-  onApriChat: () => void;
+  onApriChat: (conIniziativa?: boolean) => void;
   onContinuita: () => void;
 }) {
   const [pannelloAperto, setPannelloAperto] = useState(false);
@@ -339,6 +358,16 @@ function SchedaFantino({
             <div><strong>{livello}</strong><em>{etichettaRapporto(livello)}</em></div>
           </div>
 
+          {fase === 'inverno' && faseInvernoConRivaleDebole(rapportoRivale) && (
+            <div className="banner-rivale" role="status">
+              <strong>Attenzione rivale</strong>
+              <span>
+                {nomeRivale ? `Rapporto con ${nomeRivale}: ${rapportoRivale}/100. ` : ''}
+                I bonus positivi delle iniziative valgono il 50%.
+              </span>
+            </div>
+          )}
+
           {risultato && <p className="aiuto">{risultato}</p>}
 
           {livello >= SOGLIA_CONTINUITA && (
@@ -373,7 +402,12 @@ function SchedaFantino({
               </div>
             </div>
           ) : (
-            <button className="btn" onClick={() => { setPannelloAperto(true); setRisultato(null); }}>+ Fai un&apos;iniziativa</button>
+            <>
+              <button className="btn" onClick={() => { setPannelloAperto(true); setRisultato(null); }}>+ Fai un&apos;iniziativa</button>
+              {fase === 'inverno' && (
+                <button className="btn btn-vuoto" onClick={() => onApriChat(false)}>Parla liberamente</button>
+              )}
+            </>
           )}
         </>
       )}

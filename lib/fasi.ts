@@ -12,6 +12,8 @@ export const INFO_FASI: Record<Fase, { nome: string; sotto: string; disponibile:
 export const FASI_CON_TRATTATIVE: readonly Fase[] = ['tratta1', 'tratta2'];  // Centro trattative attivo
 export const FASI_CON_ACCORDI: readonly Fase[] = ['tratta1'];                // i fantini possono concedere accordi
 export const FASI_RAPPORTO_DIRETTO: readonly Fase[] = ['inverno'];           // la chat può cambiare il rapporto
+export const SOGLIA_RAPPORTO_RIVALE_INVERNO = 70;
+export const SOGLIA_CONTINUITA = 35;
 
 export function comeFase(valore: string | null | undefined): Fase {
   return (FASI as readonly string[]).includes(valore ?? '') ? (valore as Fase) : 'inverno';
