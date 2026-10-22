@@ -15,12 +15,12 @@ type RigaMembro = { ruolo: string | null; contrada_id: string | null; contrade: 
 const estensioniFoto = ['PNG', 'png', 'jpg', 'JPG', 'jpeg'] as const;
 
 const voci = [
-  { nome: 'Dashboard Contrada', href: '', icona: '⌂', attiva: true },
-  { nome: 'Centro trattative', href: 'trattative', icona: '⚖', attiva: false },
-  { nome: 'Cavalli', href: 'cavalli', icona: '🏆', attiva: true },
-  { nome: 'Fantini', href: 'fantini', icona: '⛑', attiva: true },
-  { nome: 'Museo della Contrada', href: 'museo', icona: '🏛', attiva: false },
-  { nome: "Archivio e Albo d'Oro", href: 'archivio', icona: '📜', attiva: true },
+  { nome: 'Dashboard Contrada', href: '', icona: 'scudo', attiva: true },
+  { nome: 'Centro trattative', href: 'trattative', icona: 'bilancia', attiva: false },
+  { nome: 'Cavalli', href: 'cavalli', icona: 'cavallo', attiva: true },
+  { nome: 'Fantini', href: 'fantini', icona: 'fantino', attiva: true },
+  { nome: 'Museo della Contrada', href: 'museo', icona: 'museo', attiva: false },
+  { nome: "Archivio e Albo d'Oro", href: 'archivio', icona: 'archivio', attiva: true },
 ];
 
 export default function LayoutPartita({ children }: { children: React.ReactNode }) {
@@ -95,11 +95,11 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
               const attiva = v.href === '' ? pathname === `/partita/${id}` : !!pathname?.startsWith(href);
               return abilitata ? (
                 <Link key={v.nome} href={href} className={`menu-voce${attiva ? ' attiva' : ''}`} onClick={() => setAperto(false)}>
-                  <span className="menu-icona">{v.icona}</span>{v.nome}
+                  <MenuIcona tipo={v.icona} />{v.nome}
                 </Link>
               ) : (
                 <span key={v.nome} className="menu-voce disabilitata" title={v.href === 'trattative' ? 'Si apre durante la Tratta' : 'In arrivo'}>
-                  <span className="menu-icona">{v.icona}</span>{v.nome}
+                  <MenuIcona tipo={v.icona} />{v.nome}
                 </span>
               );
             })}
@@ -111,6 +111,19 @@ export default function LayoutPartita({ children }: { children: React.ReactNode 
         </FaseContext.Provider>
       </div>
     </>
+  );
+}
+
+function MenuIcona({ tipo }: { tipo: string }) {
+  return (
+    <svg className="menu-icona" viewBox="0 0 24 24" aria-hidden="true">
+      {tipo === 'scudo' && <path d="M12 3 20 6v5c0 5-3.5 8.2-8 10-4.5-1.8-8-5-8-10V6l8-3Z" />}
+      {tipo === 'bilancia' && <path d="M12 4v16M7 20h10M5 7h14M7 7l-3 6a3 3 0 0 0 6 0L7 7Zm10 0-3 6a3 3 0 0 0 6 0l-3-6Z" />}
+      {tipo === 'cavallo' && <path d="M5 20c2-4 1-7 3-10l-1-4 4 1 2-3 5 2-1 4 2 3-2 7h-4l1-5-3 2-1 3H5Z" />}
+      {tipo === 'fantino' && <path d="M8 20v-5a4 4 0 0 1 8 0v5M9 8a3 3 0 1 0 6 0M7 12h10M5 20h14" />}
+      {tipo === 'museo' && <path d="m3 9 9-5 9 5M5 10v9m4-9v9m6-9v9m4-9v9M3 21h18" />}
+      {tipo === 'archivio' && <path d="M5 4h14v17H5zM8 8h8M8 12h8M8 16h5" />}
+    </svg>
   );
 }
 

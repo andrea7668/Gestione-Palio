@@ -99,8 +99,8 @@ select.campo:hover{border-color:var(--vino)}
 .menu-voce.attiva{background:var(--vino);color:#faf8f4}
 .menu-voce.disabilitata{opacity:.45;cursor:default}
 .menu-voce:not(.disabilitata):not(.attiva):hover{background:rgba(112,26,36,.08);color:var(--vino)}
-.menu-icona{width:20px;text-align:center;flex-shrink:0;filter:grayscale(1);opacity:.8}
-.menu-voce.attiva .menu-icona{filter:grayscale(1) brightness(0) invert(1);opacity:1}
+.menu-icona{width:20px;height:20px;display:block;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+.menu-voce.attiva .menu-icona{opacity:1}
 .layout-contenuto{flex:1;min-width:0}
 .menu-amburger{display:none}
 .menu-overlay{display:none}

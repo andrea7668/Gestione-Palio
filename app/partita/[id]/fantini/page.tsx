@@ -46,7 +46,7 @@ export default function PaginaFantini() {
   const [erroreSaldo, setErroreSaldo] = useState<string | null>(null);
   const [fantini, setFantini] = useState<Fantino[]>([]);
   const [livelli, setLivelli] = useState<Record<string, number>>({});
-  const [sbloccati, setSbloccati] = useState<Set<string>>(new Set());
+  const [messaggiInviati, setMessaggiInviati] = useState<Set<string>>(new Set());
   const [accordiPer, setAccordiPer] = useState<Record<string, string[]>>({});
   const [tipiAttivita, setTipiAttivita] = useState<TipoAttivita[]>([]);
   const [caricato, setCaricato] = useState(false);
@@ -80,12 +80,12 @@ export default function PaginaFantini() {
         .eq('contrada_id', m.contrada_id)
         .then((risultato) => risultato);
 
-      const [{ data: f }, { data: tipi }, { data: svolte }, { data: sal, error: erroreSaldoQuery }, { data: acc }, regolaRivale] = await Promise.all([
+      const [{ data: f }, { data: tipi }, { data: sal, error: erroreSaldoQuery }, { data: acc }, { data: messaggiUtente }, regolaRivale] = await Promise.all([
         supabase.from('fantini').select(COLONNE_FANTINO).order('nome'),
         supabase.from('tipi_attivita').select(COLONNE_ATTIVITA).order('nome'),
-        supabase.from('attivita_svolte').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id),
         supabase.from('saldi_contrade').select('saldo').eq('partita_id', id).eq('contrada_id', m.contrada_id).maybeSingle(),
         supabase.from('accordi_fantini').select('fantino_id, tipo').eq('partita_id', id).eq('contrada_id', m.contrada_id),
+        supabase.from('chat_messaggi').select('fantino_id').eq('partita_id', id).eq('contrada_id', m.contrada_id).eq('autore', 'utente').eq('utente_id', s.session.user.id),
         fase === 'inverno' ? chiama({ azione: 'rapporti_rivali', partita_id: id }) : Promise.resolve(null),
       ]);
       if (erroreSaldoQuery) {
@@ -101,7 +101,7 @@ export default function PaginaFantini() {
         const x = t as Record<string, unknown>;
         return { id: x.id as string, nome: x.nome as string, costo_minimo: Number(x.costo_minimo), costo_massimo: Number(x.costo_massimo), variazione_massima: Number(x.variazione_massima) };
       }));
-      setSbloccati(new Set((svolte ?? []).map((x) => x.fantino_id)));
+      setMessaggiInviati(new Set((messaggiUtente ?? []).map((x) => x.fantino_id)));
       const perFantino: Record<string, string[]> = {};
       (acc ?? []).forEach((a) => { (perFantino[a.fantino_id] ??= []).push(a.tipo); });
       setAccordiPer(perFantino);
@@ -176,7 +176,7 @@ export default function PaginaFantini() {
     ? fantini
     : [...fantini].sort((a, b) => rapportoDi(b) - rapportoDi(a) || a.nome.localeCompare(b.nome, 'it'));
 
-  const conChat = fase === 'inverno' ? ordinati : ordinati.filter((f) => sbloccati.has(f.id));
+  const conChat = ordinati.filter((f) => messaggiInviati.has(f.id));
 
   return (
     <div className="pagina-fantini">
@@ -240,19 +240,17 @@ export default function PaginaFantini() {
                 {fase && (
                   <p className="aiuto">
                     Fase: {INFO_FASI[fase].nome}.{' '}
-                    {fase === 'inverno'
-                      ? 'In Inverno puoi parlare liberamente con tutti i fantini, anche senza iniziative.'
-                      : 'Puoi parlare solo con i fantini con cui hai fatto un&apos;iniziativa.'}
+                    'Qui puoi scegliere solo i fantini a cui hai già scritto o con cui hai già fatto un'iniziativa.'
                   </p>
                 )}
                 {conChat.length === 0 && (
-                  <p className="aiuto">Non puoi ancora scrivere a nessuno: fai prima un&apos;iniziativa con un fantino.</p>
+                  <p className="aiuto">Nessuna conversazione ancora. Apri una scheda fantino e scrivi il primo messaggio.</p>
                 )}
                 {conChat.map((f) => {
                   const acc = accordoPiuForte(accordiPer[f.id]);
                   return (
                     <button key={f.id} className="btn btn-vuoto" style={{ textAlign: 'left' }} onClick={() => { setMessaggioInizialeChat(null); setFantinoChat(f); }}>
-                      {fase === 'inverno' ? 'Parla liberamente · ' : ''}{f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
+                      {f.nome}{f.soprannome ? ` — «${f.soprannome}»` : ''}{acc ? ` · ${acc}` : ''}
                     </button>
                   );
                 })}

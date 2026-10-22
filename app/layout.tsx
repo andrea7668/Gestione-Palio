@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Il Gioco del Palio — gestionale multiplayer del Palio di Siena",
+  title: "Il Gioco del Palio",
   description: "Gestionale multiplayer del Palio di Siena",
 };
 
